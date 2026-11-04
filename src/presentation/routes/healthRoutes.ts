@@ -21,12 +21,4 @@ export async function healthRoutes(fastify: FastifyInstance, _opts: FastifyPlugi
       }
     });
   });
-
-  fastify.get('/', async (_request, reply) => {
-    return reply.status(200).send({
-      name: 'Unified WhatsApp Enterprise Gateway',
-      version: '1.0.0',
-      docs: '/documentation'
-    });
-  });
 }

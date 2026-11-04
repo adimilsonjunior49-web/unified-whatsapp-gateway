@@ -3,6 +3,8 @@ import { WebhookPayload } from '../../domain/webhook';
 
 class EventBus extends EventEmitter {
   private static instance: EventBus;
+  private recentEvents: WebhookPayload[] = [];
+  private readonly MAX_EVENTS = 100;
 
   private constructor() {
     super();
@@ -17,12 +19,23 @@ class EventBus extends EventEmitter {
   }
 
   public publish(payload: WebhookPayload): void {
+    // Armazena no buffer circular de eventos recentes para o Dashboard
+    this.recentEvents.unshift(payload);
+    if (this.recentEvents.length > this.MAX_EVENTS) {
+      this.recentEvents.pop();
+    }
+
     // Dispara evento em background sem bloquear a execução
     setImmediate(() => {
       this.emit('webhook_event', payload);
       this.emit(payload.event, payload);
     });
   }
+
+  public getRecentEvents(): WebhookPayload[] {
+    return [...this.recentEvents];
+  }
 }
 
 export const eventBus = EventBus.getInstance();
+

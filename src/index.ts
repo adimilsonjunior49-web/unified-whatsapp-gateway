@@ -8,6 +8,7 @@ import { authMiddleware } from './presentation/middlewares/authMiddleware';
 import { sessionRoutes } from './presentation/routes/sessionRoutes';
 import { messageRoutes } from './presentation/routes/messageRoutes';
 import { healthRoutes } from './presentation/routes/healthRoutes';
+import { dashboardRoutes } from './presentation/routes/dashboardRoutes';
 import { WebhookDispatcher } from './application/webhookDispatcher';
 
 const app = Fastify({
@@ -51,6 +52,7 @@ async function bootstrap() {
   app.addHook('onRequest', authMiddleware);
 
   // 3. Registro de Rotas
+  await app.register(dashboardRoutes);
   await app.register(healthRoutes);
   await app.register(sessionRoutes);
   await app.register(messageRoutes);
