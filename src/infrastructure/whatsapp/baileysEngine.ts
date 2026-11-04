@@ -16,11 +16,13 @@ import { WhatsAppSession, SessionStatus } from '../../domain/session';
 import { NormalizedMessage, SendMessageRequest } from '../../domain/message';
 import { eventBus } from '../queue/eventBus';
 import { agencyHub } from '../agents/agencyHub';
+import { highCapacityStore, ChatRecord } from '../storage/highCapacityStore';
 
 export interface ChatSummary {
   remoteJid: string;
   name: string;
   lastMessage: string;
+  category?: 'LOGGI' | 'PESSOAL' | 'ARQUIVADO';
   timestamp: number;
   unreadCount: number;
   messages: NormalizedMessage[];
@@ -40,13 +42,44 @@ export class BaileysEngine {
     return Array.from(this.sessionsState.values());
   }
 
-  public getChats(sessionId: string): ChatSummary[] {
+  public getChats(sessionId: string, category?: 'LOGGI' | 'PESSOAL' | 'ARQUIVADO'): ChatSummary[] {
+    // 1. Tenta carregar do banco de alta capacidade persistente
+    try {
+      const records = highCapacityStore.getChatsByCategory(sessionId, category);
+      if (records.length > 0) {
+        return records.map(r => ({
+          remoteJid: r.jid,
+          name: r.name,
+          lastMessage: r.lastMessage,
+          category: r.category,
+          timestamp: r.lastTimestamp,
+          unreadCount: r.unreadCount,
+          messages: []
+        }));
+      }
+    } catch (_) {}
+
+    // 2. Fallback na memória temporária
     const sessionChats = this.chatStore.get(sessionId);
     if (!sessionChats) return [];
-    return Array.from(sessionChats.values()).sort((a, b) => b.timestamp - a.timestamp);
+    let list = Array.from(sessionChats.values()).map(c => ({
+      ...c,
+      category: c.category || highCapacityStore.detectCategory(c.name, c.lastMessage, c.remoteJid)
+    }));
+    if (category) {
+      list = list.filter(c => c.category === category);
+    }
+    return list.sort((a, b) => b.timestamp - a.timestamp);
   }
 
   public getChatMessages(sessionId: string, remoteJid: string): NormalizedMessage[] {
+    // 1. Tenta carregar do banco relacional de alta capacidade
+    try {
+      const dbMsgs = highCapacityStore.getMessages(remoteJid, 100);
+      if (dbMsgs.length > 0) return dbMsgs;
+    } catch (_) {}
+
+    // 2. Fallback na memória
     const sessionChats = this.chatStore.get(sessionId);
     if (!sessionChats) return [];
     const chat = sessionChats.get(remoteJid);
@@ -54,6 +87,14 @@ export class BaileysEngine {
   }
 
   private saveToChatStore(sessionId: string, msg: NormalizedMessage): void {
+    // 1. Salva no banco de dados de alta capacidade
+    try {
+      highCapacityStore.saveMessage(msg);
+    } catch (e: any) {
+      this.logger.error(`[Storage] Erro ao gravar mensagem: ${e.message}`);
+    }
+
+    // 2. Salva no cache em memória
     if (!this.chatStore.has(sessionId)) {
       this.chatStore.set(sessionId, new Map());
     }
@@ -61,13 +102,15 @@ export class BaileysEngine {
     const existing = sessionChats.get(msg.remoteJid);
 
     const messages = existing ? [...existing.messages, msg] : [msg];
-    // Mantém no máximo 100 mensagens no histórico por contato
     if (messages.length > 100) messages.shift();
+
+    const category = highCapacityStore.detectCategory(msg.senderName, msg.text, msg.remoteJid);
 
     sessionChats.set(msg.remoteJid, {
       remoteJid: msg.remoteJid,
       name: msg.senderName || msg.remoteJid.split('@')[0],
       lastMessage: msg.text || (msg.mediaType ? `[${msg.mediaType}]` : ''),
+      category: existing?.category || category,
       timestamp: msg.timestamp,
       unreadCount: msg.isFromMe ? 0 : (existing ? existing.unreadCount + 1 : 1),
       messages
@@ -240,17 +283,26 @@ export class BaileysEngine {
     let result: any;
 
     // 1. Mensagem de Texto
-    if (payload.text && !payload.mediaUrl) {
+    if (payload.text && !payload.mediaUrl && !payload.audioBase64) {
       result = await sock.sendMessage(jid, { text: payload.text });
+    } else if (payload.audioBase64) {
+      // 2. Gravação de Áudio PTT via Web Audio API (Base64)
+      const base64Data = payload.audioBase64.replace(/^data:audio\/\w+;base64,/, '');
+      const audioBuffer = Buffer.from(base64Data, 'base64');
+      result = await sock.sendMessage(jid, {
+        audio: audioBuffer,
+        mimetype: 'audio/mp4',
+        ptt: true
+      });
     } else if (payload.mediaType === 'voice' && payload.mediaUrl) {
-      // 2. Áudio Nativo de Voz (PTT com Waveform Opus)
+      // 3. Áudio Nativo de Voz (PTT com Waveform Opus)
       result = await sock.sendMessage(jid, {
         audio: { url: payload.mediaUrl },
         mimetype: 'audio/ogg; codecs=opus',
         ptt: true
       });
     } else if (payload.mediaUrl) {
-      // 3. Mídia Geral (Imagem, Vídeo ou Documento)
+      // 4. Mídia Geral (Imagem, Vídeo ou Documento)
       const type = payload.mediaType || 'document';
       result = await sock.sendMessage(jid, {
         [type]: { url: payload.mediaUrl },

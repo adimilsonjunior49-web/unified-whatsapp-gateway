@@ -23,4 +23,5 @@ export interface SendMessageRequest {
   mediaUrl?: string;
   fileName?: string;
   quotedMsgId?: string;
+  audioBase64?: string;
 }
