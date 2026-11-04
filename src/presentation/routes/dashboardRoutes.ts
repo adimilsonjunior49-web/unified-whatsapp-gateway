@@ -42,6 +42,16 @@ export async function dashboardRoutes(fastify: FastifyInstance, _opts: FastifyPl
     });
   });
 
+  // Servir arquivos de áudio transcritos
+  fastify.get('/audio/:filename', async (req, reply) => {
+    const { filename } = req.params as { filename: string };
+    const audioPath = path.resolve(process.cwd(), 'storage', 'audio', filename);
+    if (fs.existsSync(audioPath)) {
+      return reply.type('audio/ogg').send(fs.createReadStream(audioPath));
+    }
+    return reply.status(404).send({ error: 'Arquivo de áudio não encontrado.' });
+  });
+
   // HTML da aplicação completa
   fastify.get('/', async (_req, reply) => {
     return reply.type('text/html').send(renderExecutiveLoggiDashboardHTML());
@@ -792,15 +802,19 @@ function renderExecutiveLoggiDashboardHTML(): string {
             <div class="flex flex-col \${align} max-w-[85%] \${isMe ? 'self-end' : 'self-start'}">
               <div class="px-4 py-2.5 rounded-2xl text-xs leading-relaxed \${bubble}">
                 \${isAudio ? \`
-                  <div class="space-y-2 mb-2 p-2.5 rounded-xl bg-obsidian-950/80 border border-emerald-500/30">
+                  <div class="space-y-2 mb-1 p-3 rounded-xl bg-obsidian-950/90 border border-emerald-500/40 shadow-sm">
                     <div class="flex items-center space-x-2 text-emerald-400 font-bold text-xs">
                       <i data-lucide="mic" class="w-4 h-4"></i>
-                      <span>Áudio Transcrito na Íntegra (Whisper)</span>
+                      <span>Transcrição do Áudio na Íntegra (Whisper):</span>
+                    </div>
+                    <div class="text-xs text-white leading-relaxed font-sans font-medium bg-obsidian-900/80 p-2.5 rounded-lg border border-slate-800">
+                      \${m.text && m.text !== '[Mensagem de Voz]' ? m.text : 'Processando transcrição fiel com Whisper...'}
                     </div>
                     \${m.mediaUrl ? \`<audio controls class="w-full h-8 mt-1"><source src="\${m.mediaUrl}" type="audio/ogg"></audio>\` : ''}
                   </div>
-                \` : ''}
-                <p class="whitespace-pre-wrap">\${m.text}</p>
+                \` : \`
+                  <p class="whitespace-pre-wrap">\${m.text}</p>
+                \`}
                 <span class="text-[9px] opacity-75 block text-right mt-1 font-mono">\${time}</span>
               </div>
             </div>

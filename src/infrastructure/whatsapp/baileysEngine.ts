@@ -3,6 +3,7 @@ import makeWASocket, {
   DisconnectReason,
   fetchLatestBaileysVersion,
   Browsers,
+  downloadMediaMessage,
   proto
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
@@ -17,6 +18,7 @@ import { NormalizedMessage, SendMessageRequest } from '../../domain/message';
 import { eventBus } from '../queue/eventBus';
 import { agencyHub } from '../agents/agencyHub';
 import { highCapacityStore, ChatRecord } from '../storage/highCapacityStore';
+import { audioTranscriptionEngine } from '../audio/audioTranscriptionEngine';
 
 export interface ChatSummary {
   remoteJid: string;
@@ -319,6 +321,33 @@ export class BaileysEngine {
       for (const msg of m.messages) {
         const normalized = this.normalizeMessage(sessionId, msg);
         if (normalized) {
+          // Se for mensagem de voz, baixa o áudio e transcreve fielmente com Whisper na íntegra
+          if (normalized.mediaType === 'voice' && msg.message?.audioMessage) {
+            try {
+              const audioBuffer = await downloadMediaMessage(msg, 'buffer', {}, {
+                logger: this.logger,
+                reuploadRequest: sock.updateMediaMessage
+              });
+
+              const audioDir = path.resolve(process.cwd(), 'storage', 'audio');
+              if (!fs.existsSync(audioDir)) {
+                fs.mkdirSync(audioDir, { recursive: true });
+              }
+              const filename = `${sessionId}_${normalized.id}.ogg`;
+              const audioFilePath = path.join(audioDir, filename);
+              fs.writeFileSync(audioFilePath, audioBuffer);
+              normalized.mediaUrl = `/audio/${filename}`;
+
+              // Transcrição literal com Whisper
+              const transcribedText = await audioTranscriptionEngine.transcribe(audioBuffer);
+              if (transcribedText) {
+                normalized.text = transcribedText;
+              }
+            } catch (err: any) {
+              this.logger.warn(`[Whisper Audio] Erro ao transcrever: ${err.message}`);
+            }
+          }
+
           this.saveToChatStore(sessionId, normalized);
 
           // Dispara eventos em tempo real para o dashboard e Telegram
