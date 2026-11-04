@@ -14,6 +14,7 @@ export async function authMiddleware(request: FastifyRequest, reply: FastifyRepl
     url.startsWith('/events/recent') ||
     url.startsWith('/chats') ||
     url.startsWith('/agents') ||
+    url === '/icon.svg' ||
     url === '/favicon.ico'
   ) {
     return;

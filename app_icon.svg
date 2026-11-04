@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="50%" stop-color="#064e3b" />
+      <stop offset="100%" stop-color="#022c22" />
+    </linearGradient>
+    <linearGradient id="brandGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34d399" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="16" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+  <!-- Background with rounded corners -->
+  <rect width="512" height="512" rx="128" fill="url(#bgGrad)" />
+  <!-- Subtle inner border -->
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="none" stroke="#34d399" stroke-width="4" stroke-opacity="0.25" />
+  
+  <!-- Outer Shield Aura -->
+  <path d="M256 72 C336 128 416 120 416 120 C416 280 344 384 256 440 C168 384 96 280 96 120 C96 120 176 128 256 72 Z" fill="none" stroke="url(#brandGrad)" stroke-width="14" filter="url(#glow)" opacity="0.7" />
+
+  <!-- Inner Geometric Badge -->
+  <path d="M256 96 C320 144 384 136 384 136 C384 268 324 356 256 408 C188 356 128 268 128 136 C128 136 192 144 256 96 Z" fill="#0B0F19" stroke="#10b981" stroke-width="8" />
+
+  <!-- Stylized A + Lightning + Chat Ring -->
+  <circle cx="256" cy="240" r="56" fill="#059669" fill-opacity="0.2" stroke="#34d399" stroke-width="6" />
+  
+  <!-- Chat Node Dot -->
+  <circle cx="312" cy="184" r="12" fill="#38bdf8" />
+  
+  <!-- Central Emblem -->
+  <path d="M216 312 L256 172 L296 312 M232 276 L280 276" fill="none" stroke="#ffffff" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" />
+
+  <!-- Loggi Wings / Sparkle -->
+  <path d="M256 344 L256 376 M240 360 L272 360" stroke="#38bdf8" stroke-width="8" stroke-linecap="round" />
+</svg>

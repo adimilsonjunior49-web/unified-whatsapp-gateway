@@ -11,6 +11,7 @@ import { healthRoutes } from './presentation/routes/healthRoutes';
 import { dashboardRoutes } from './presentation/routes/dashboardRoutes';
 import { chatAndAgentRoutes } from './presentation/routes/chatAndAgentRoutes';
 import { WebhookDispatcher } from './application/webhookDispatcher';
+import { TelegramBridge } from './infrastructure/telegram/telegramBridge';
 
 const app = Fastify({
   logger: {
@@ -59,8 +60,9 @@ async function bootstrap() {
   await app.register(messageRoutes);
   await app.register(chatAndAgentRoutes);
 
-  // 4. Inicialização de Serviços de Fundo (Webhooks)
+  // 4. Inicialização de Serviços de Fundo (Webhooks & Telegram Bridge)
   WebhookDispatcher.init();
+  TelegramBridge.getInstance();
 
   // 5. Start Server
   try {
