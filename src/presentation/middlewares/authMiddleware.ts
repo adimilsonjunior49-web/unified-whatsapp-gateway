@@ -17,6 +17,8 @@ export async function authMiddleware(request: FastifyRequest, reply: FastifyRepl
     url.startsWith('/sync') ||
     url.startsWith('/stats') ||
     url.startsWith('/agents') ||
+    url.startsWith('/tower') ||
+    url.startsWith('/audio') ||
     url === '/icon.svg' ||
     url === '/favicon.ico'
   ) {

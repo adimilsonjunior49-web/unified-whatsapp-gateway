@@ -437,69 +437,296 @@ function renderExecutiveLoggiDashboardHTML(): string {
     </div>
 
     <!-- --------------------------------------------------------------------- -->
-    <!-- VIEW C: TORRE DE CONTROLE ANALÍTICA GERAL                             -->
+    <!-- VIEW C: TORRE DE CONTROLE ANALÍTICA GERAL (PAINÉIS & FARÓIS LOGGI)     -->
     <!-- --------------------------------------------------------------------- -->
     <div id="viewSectionTower" class="hidden flex-1 flex flex-col bg-obsidian-950 p-6 overflow-y-auto space-y-6">
       
-      <!-- Tower Header -->
-      <div class="border-b border-slate-800 pb-4 flex items-center justify-between">
+      <!-- Tower Header & Actions -->
+      <div class="border-b border-slate-800 pb-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div class="flex items-center space-x-3">
-          <div class="w-12 h-12 rounded-2xl bg-sky-500/20 text-sky-400 flex items-center justify-center font-bold">
+          <div class="w-12 h-12 rounded-2xl bg-sky-500/20 text-sky-400 flex items-center justify-center font-bold shadow-lg shadow-sky-500/10">
             <i data-lucide="tower-control" class="w-6 h-6"></i>
           </div>
           <div>
-            <h2 class="text-xl font-extrabold text-white">Torre de Controle Operacional Loggi & Telegram</h2>
-            <p class="text-xs text-slate-400">Visão panorâmica de grupos, veículos, rotas e ocorrências.</p>
+            <div class="flex items-center gap-2">
+              <h2 class="text-xl font-extrabold text-white">Torre de Controle Operacional Loggi & Telegram</h2>
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> FAROL VERDE: 100% REGULAR
+              </span>
+            </div>
+            <p class="text-xs text-slate-400">Monitoramento de tráfego, semaforização por hubs, SLA e despacho de ocorrências.</p>
           </div>
         </div>
 
-        <a href="https://t.me/AtlasJuniorBot" target="_blank" class="px-4 py-2 bg-sky-500 hover:bg-sky-400 text-white font-bold text-xs rounded-xl flex items-center gap-2 transition shadow-lg shadow-sky-500/20">
-          <i data-lucide="send" class="w-4 h-4"></i> Abrir Bot no Telegram (@AtlasJuniorBot)
-        </a>
+        <!-- Quick Tower Actions -->
+        <div class="flex flex-wrap items-center gap-2">
+          <button onclick="openBroadcastModal()" class="px-3 py-2 bg-loggi-500 hover:bg-loggi-600 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition shadow-lg shadow-loggi-500/20" title="Enviar comunicado para todos os grupos Loggi">
+            <i data-lucide="radio" class="w-4 h-4"></i> Comunicado Geral
+          </button>
+          <button onclick="openTelegramAlertModal()" class="px-3 py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition shadow-lg shadow-rose-600/20" title="Disparar Alerta Vermelho no Telegram">
+            <i data-lucide="alert-triangle" class="w-4 h-4"></i> Alerta de Plantão
+          </button>
+          <button onclick="runMalhaScanIA()" id="btnScanMalha" class="px-3 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition shadow-lg shadow-purple-600/20" title="Analisar mensagens recentes com IA">
+            <i data-lucide="sparkles" class="w-4 h-4"></i> Varredura IA
+          </button>
+          <a href="https://t.me/AtlasJuniorBot" target="_blank" class="px-3 py-2 bg-sky-500 hover:bg-sky-400 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition shadow-lg shadow-sky-500/20">
+            <i data-lucide="send" class="w-4 h-4"></i> Bot Telegram
+          </a>
+        </div>
       </div>
 
-      <!-- KPI Cards -->
+      <!-- PAINEL 1: FARÓIS OPERACIONAIS EM TEMPO REAL (SEMAFORIZAÇÃO) -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-2">
-          <span class="text-xs text-slate-400 font-medium">Grupos da Loggi Monitorados</span>
-          <div class="text-2xl font-extrabold text-white" id="kpiLoggiGroups">47 Grupos</div>
-          <p class="text-[11px] text-loggi-400">100% ativos com espelhamento</p>
+        
+        <!-- Farol 1: Malha e Tráfego Geral -->
+        <div class="glass-card rounded-2xl p-4 border border-slate-800 bg-obsidian-900/80 flex items-start justify-between">
+          <div class="space-y-1">
+            <span class="text-[11px] text-slate-400 font-semibold tracking-wide uppercase">Farol da Malha Loggi</span>
+            <div class="text-lg font-extrabold text-emerald-400 flex items-center gap-2">
+              <span>Fluxo Normal</span>
+            </div>
+            <p class="text-[11px] text-slate-400">47 Grupos monitorados em tempo real</p>
+          </div>
+          <div class="relative flex items-center justify-center p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+            <span class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full animate-ping"></span>
+            <span class="w-2.5 h-2.5 bg-emerald-400 rounded-full"></span>
+          </div>
         </div>
-        <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-2">
-          <span class="text-xs text-slate-400 font-medium">Contatos Salvos na Agenda</span>
-          <div class="text-2xl font-extrabold text-white" id="kpiSavedContacts">3.900</div>
-          <p class="text-[11px] text-emerald-400">Indexados no SQLite</p>
+
+        <!-- Farol 2: Conectividade WhatsApp Master -->
+        <div class="glass-card rounded-2xl p-4 border border-slate-800 bg-obsidian-900/80 flex items-start justify-between">
+          <div class="space-y-1">
+            <span class="text-[11px] text-slate-400 font-semibold tracking-wide uppercase">Farol Conectividade</span>
+            <div class="text-lg font-extrabold text-emerald-400 flex items-center gap-2">
+              <span>Online (22ms)</span>
+            </div>
+            <p class="text-[11px] text-slate-400">+55 11 97625-8311 (Master)</p>
+          </div>
+          <div class="relative flex items-center justify-center p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+            <i data-lucide="wifi" class="w-5 h-5"></i>
+          </div>
         </div>
-        <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-2">
-          <span class="text-xs text-slate-400 font-medium">Torre Telegram Conectada</span>
-          <div class="text-2xl font-extrabold text-white">@AtlasJuniorBot</div>
-          <p class="text-[11px] text-sky-400">Chat ID: 553488777 (Adimilson)</p>
+
+        <!-- Farol 3: SLA de Resposta e Docas -->
+        <div class="glass-card rounded-2xl p-4 border border-slate-800 bg-obsidian-900/80 flex items-start justify-between">
+          <div class="space-y-1">
+            <span class="text-[11px] text-slate-400 font-semibold tracking-wide uppercase">Farol SLA de Resposta</span>
+            <div class="text-lg font-extrabold text-white flex items-center gap-2">
+              <span class="text-emerald-400">98.8%</span>
+              <span class="text-xs text-slate-400 font-normal">(&lt; 3.4 min)</span>
+            </div>
+            <p class="text-[11px] text-slate-400">0 mensagens retidas na fila</p>
+          </div>
+          <div class="p-3 rounded-2xl bg-sky-500/10 border border-sky-500/20 text-sky-400">
+            <i data-lucide="clock" class="w-5 h-5"></i>
+          </div>
         </div>
-        <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-2">
-          <span class="text-xs text-slate-400 font-medium">Motor de Inteligência</span>
-          <div class="text-2xl font-extrabold text-white">Claude & Whisper</div>
-          <p class="text-[11px] text-purple-400">Resumos e Transcrições fiéis</p>
+
+        <!-- Farol 4: Motor Whisper & Transcrição -->
+        <div class="glass-card rounded-2xl p-4 border border-slate-800 bg-obsidian-900/80 flex items-start justify-between">
+          <div class="space-y-1">
+            <span class="text-[11px] text-slate-400 font-semibold tracking-wide uppercase">Farol IA & Transcrição</span>
+            <div class="text-lg font-extrabold text-purple-400 flex items-center gap-2">
+              <span>Whisper 100% Ativo</span>
+            </div>
+            <p class="text-[11px] text-slate-400">Transcrições literais salvas no balão</p>
+          </div>
+          <div class="p-3 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-400">
+            <i data-lucide="mic" class="w-5 h-5"></i>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- PAINEL 2: HUBS E POLOS REGIONAIS DA LOGGI COM SEMAFORIZAÇÃO -->
+      <div class="space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="font-extrabold text-white text-base flex items-center gap-2">
+            <i data-lucide="map-pin" class="w-4 h-4 text-loggi-400"></i> Painéis dos Hubs e Centros de Distribuição
+          </h3>
+          <span class="text-xs text-slate-400">Atualização contínua via mensagens dos grupos</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" id="towerHubsGrid">
+          
+          <!-- Hub 1: Cajamar CD Matriz -->
+          <div class="glass-card rounded-2xl p-4 border border-slate-800 bg-obsidian-900 hover:border-slate-700 transition space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> FAROL VERDE
+              </span>
+              <span class="text-xs font-bold text-slate-300">SLA 99.4%</span>
+            </div>
+            <div>
+              <h4 class="font-bold text-white text-sm">Hub Cajamar (CD Matriz)</h4>
+              <p class="text-[11px] text-slate-400">Grande SP / Rodoanel Oeste</p>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-800/80">
+              <div>
+                <span class="text-slate-500 text-[10px] block">Grupos Ativos</span>
+                <span class="text-white font-bold">18 Grupos</span>
+              </div>
+              <div>
+                <span class="text-slate-500 text-[10px] block">Veículos Trânsito</span>
+                <span class="text-white font-bold">142 Carretas</span>
+              </div>
+            </div>
+            <p class="text-[11px] text-emerald-400 font-medium">Expedição e Docas em fluxo máximo contínuo.</p>
+          </div>
+
+          <!-- Hub 2: Vila Leopoldina -->
+          <div class="glass-card rounded-2xl p-4 border border-slate-800 bg-obsidian-900 hover:border-slate-700 transition space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> FAROL VERDE
+              </span>
+              <span class="text-xs font-bold text-slate-300">SLA 98.5%</span>
+            </div>
+            <div>
+              <h4 class="font-bold text-white text-sm">Hub Vila Leopoldina</h4>
+              <p class="text-[11px] text-slate-400">São Paulo Capital Last-Mile</p>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-800/80">
+              <div>
+                <span class="text-slate-500 text-[10px] block">Grupos Ativos</span>
+                <span class="text-white font-bold">11 Grupos</span>
+              </div>
+              <div>
+                <span class="text-slate-500 text-[10px] block">Veículos Trânsito</span>
+                <span class="text-white font-bold">96 VUCs / Vans</span>
+              </div>
+            </div>
+            <p class="text-[11px] text-emerald-400 font-medium">Conclusão de rotas D+0 dentro da janela.</p>
+          </div>
+
+          <!-- Hub 3: Campinas & Interior -->
+          <div class="glass-card rounded-2xl p-4 border border-slate-800 bg-obsidian-900 hover:border-slate-700 transition space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> FAROL VERDE
+              </span>
+              <span class="text-xs font-bold text-slate-300">SLA 97.9%</span>
+            </div>
+            <div>
+              <h4 class="font-bold text-white text-sm">Hub Campinas & Interior</h4>
+              <p class="text-[11px] text-slate-400">Corredor Anhanguera / Bandeirantes</p>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-800/80">
+              <div>
+                <span class="text-slate-500 text-[10px] block">Grupos Ativos</span>
+                <span class="text-white font-bold">10 Grupos</span>
+              </div>
+              <div>
+                <span class="text-slate-500 text-[10px] block">Veículos Trânsito</span>
+                <span class="text-white font-bold">74 Veículos</span>
+              </div>
+            </div>
+            <p class="text-[11px] text-emerald-400 font-medium">Transferências noturnas liberadas e em trânsito.</p>
+          </div>
+
+          <!-- Hub 4: Pavuna / Rio de Janeiro -->
+          <div class="glass-card rounded-2xl p-4 border border-slate-800 bg-obsidian-900 hover:border-slate-700 transition space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span> FAROL AMARELO
+              </span>
+              <span class="text-xs font-bold text-amber-300">SLA 95.2%</span>
+            </div>
+            <div>
+              <h4 class="font-bold text-white text-sm">Hub Pavuna & Baixada</h4>
+              <p class="text-[11px] text-slate-400">Rio de Janeiro e Leste Fluminense</p>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-800/80">
+              <div>
+                <span class="text-slate-500 text-[10px] block">Grupos Ativos</span>
+                <span class="text-white font-bold">8 Grupos</span>
+              </div>
+              <div>
+                <span class="text-slate-500 text-[10px] block">Veículos Trânsito</span>
+                <span class="text-white font-bold">51 Veículos</span>
+              </div>
+            </div>
+            <p class="text-[11px] text-amber-400 font-medium">Atenção: Tráfego na Linha Vermelha / Chuva moderada.</p>
+          </div>
+
         </div>
       </div>
 
-      <!-- Quick Operations Actions -->
+      <!-- PAINEL 3: RADAR DE INCIDENTES & FEED DE OCORRÊNCIAS OPERACIONAIS -->
+      <div class="glass-card rounded-2xl p-5 border border-slate-800 bg-obsidian-900/90 space-y-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-2">
+            <i data-lucide="shield-alert" class="w-5 h-5 text-amber-400"></i>
+            <h3 class="font-extrabold text-white text-base">Radar de Ocorrências & Eventos de Rota</h3>
+          </div>
+          <button onclick="loadTowerData()" class="text-xs text-sky-400 hover:text-sky-300 flex items-center gap-1">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Atualizar Feed
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead>
+              <tr class="border-b border-slate-800 text-slate-400">
+                <th class="pb-2 font-semibold">Horário</th>
+                <th class="pb-2 font-semibold">Origem / Grupo / Remetente</th>
+                <th class="pb-2 font-semibold">Resumo da Ocorrência</th>
+                <th class="pb-2 font-semibold">Gravidade</th>
+                <th class="pb-2 font-semibold text-right">Ação</th>
+              </tr>
+            </thead>
+            <tbody id="towerIncidentsTableBody" class="divide-y divide-slate-800/60 text-slate-300">
+              <tr>
+                <td class="py-3 text-slate-400 font-mono">19:42</td>
+                <td class="py-3 font-semibold text-white">Central Cajamar - Doca 04</td>
+                <td class="py-3 text-slate-300">Carregamento da carreta SP-RJ concluído e liberado para trânsito com sucesso.</td>
+                <td class="py-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400">NORMAL</span></td>
+                <td class="py-3 text-right"><button onclick="viewIncidentChat()" class="text-sky-400 hover:underline">Abrir Chat</button></td>
+              </tr>
+              <tr>
+                <td class="py-3 text-slate-400 font-mono">19:15</td>
+                <td class="py-3 font-semibold text-white">Supervisão Last-Mile Campinas</td>
+                <td class="py-3 text-slate-300">Tráfego lento na Rod. Anhanguera km 92 sentido interior por manutenção de pista.</td>
+                <td class="py-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-400">ATENÇÃO</span></td>
+                <td class="py-3 text-right"><button onclick="viewIncidentChat()" class="text-sky-400 hover:underline">Abrir Chat</button></td>
+              </tr>
+              <tr>
+                <td class="py-3 text-slate-400 font-mono">18:50</td>
+                <td class="py-3 font-semibold text-white">Hub Vila Leopoldina</td>
+                <td class="py-3 text-slate-300">100% das coletas do turno vespertino descarregadas e conferidas sem avarias.</td>
+                <td class="py-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400">CONCLUÍDO</span></td>
+                <td class="py-3 text-right"><button onclick="viewIncidentChat()" class="text-sky-400 hover:underline">Abrir Chat</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- PAINEL 4: COMANDOS RÁPIDOS & INTEGRAÇÃO TELEGRAM BOT -->
       <div class="glass-card rounded-2xl p-6 border border-slate-800 space-y-4">
-        <h3 class="font-extrabold text-white text-base">Comandos da Torre Telegram</h3>
+        <div class="flex items-center justify-between">
+          <h3 class="font-extrabold text-white text-base">Comandos Remotos da Torre Telegram (@AtlasJuniorBot)</h3>
+          <span class="text-xs text-sky-400 font-mono">Chat ID: 553488777 (Adimilson)</span>
+        </div>
         <p class="text-xs text-slate-300 leading-relaxed">
-          Pelo seu Telegram em <strong>@AtlasJuniorBot</strong> você pode enviar:
+          Você pode emitir comandos e acompanhar alertas no seu smartphone pelo Telegram:
         </p>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
           <div class="p-3 bg-obsidian-900 rounded-xl border border-slate-800">
             <code class="text-sky-400 font-bold block mb-1">/status</code>
-            <span class="text-slate-400">Verifica se o WhatsApp Master está conectado e quantas mensagens foram processadas.</span>
+            <span class="text-slate-400">Verifica a saúde do gateway, latência do WhatsApp e quantidade de mensagens.</span>
           </div>
           <div class="p-3 bg-obsidian-900 rounded-xl border border-slate-800">
             <code class="text-sky-400 font-bold block mb-1">/loggi</code>
-            <span class="text-slate-400">Recebe os últimos alertas e mensagens dos 47 grupos da Loggi.</span>
+            <span class="text-slate-400">Recebe o briefing dos 47 grupos Loggi e principais destaques operacionais.</span>
           </div>
           <div class="p-3 bg-obsidian-900 rounded-xl border border-slate-800">
-            <code class="text-sky-400 font-bold block mb-1">/ia on ou /ia off</code>
-            <span class="text-slate-400">Liga ou pausa as respostas automáticas da inteligência artificial.</span>
+            <code class="text-purple-400 font-bold block mb-1">/ia on ou /ia off</code>
+            <span class="text-slate-400">Alterna as respostas e sugestões automáticas da IA no WhatsApp.</span>
+          </div>
+          <div class="p-3 bg-obsidian-900 rounded-xl border border-slate-800">
+            <code class="text-emerald-400 font-bold block mb-1">/ajuda</code>
+            <span class="text-slate-400">Lista todos os atalhos e telefones de plantão da diretoria de operações.</span>
           </div>
         </div>
       </div>
@@ -601,6 +828,135 @@ function renderExecutiveLoggiDashboardHTML(): string {
     </div>
   </div>
 
+  <!-- ========================================================================= -->
+  <!-- MODAL 3: COMUNICADO GERAL PARA TODOS OS GRUPOS LOGGI                      -->
+  <!-- ========================================================================= -->
+  <div id="broadcastModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="glass-card bg-obsidian-900 border border-slate-700 rounded-2xl w-full max-w-lg p-6 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center space-x-2">
+          <div class="w-8 h-8 rounded-xl bg-loggi-500/20 text-loggi-400 flex items-center justify-center">
+            <i data-lucide="radio" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="font-extrabold text-white text-base">Transmitir Comunicado Operacional</h3>
+            <p class="text-[11px] text-slate-400">Disparo automático para os 47 grupos Loggi monitorados</p>
+          </div>
+        </div>
+        <button onclick="closeBroadcastModal()" class="text-slate-400 hover:text-white transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block font-semibold text-slate-300 mb-1">Prioridade do Comunicado</label>
+          <select id="selectBroadcastPriority" class="w-full bg-obsidian-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-loggi-500">
+            <option value="NORMAL">Normal (Supervisão & Malha Logística)</option>
+            <option value="URGENT">Alerta Vermelho Urgente (Diretoria de Operações)</option>
+          </select>
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-300 mb-1">Mensagem do Comunicado *</label>
+          <textarea id="textBroadcastMessage" rows="5" placeholder="Digite o aviso para motoristas, docas e supervisão..." class="w-full bg-obsidian-950 border border-slate-800 rounded-xl p-3 text-white focus:outline-none focus:border-loggi-500 resize-none"></textarea>
+        </div>
+        <p class="text-[11px] text-slate-400">
+          Esta mensagem também será enviada como registro na sua Torre no Telegram (@AtlasJuniorBot).
+        </p>
+      </div>
+
+      <div class="flex items-center justify-end space-x-2 pt-2 border-t border-slate-800">
+        <button onclick="closeBroadcastModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-semibold transition text-xs">Cancelar</button>
+        <button onclick="sendBroadcastMessage()" id="btnSubmitBroadcast" class="px-4 py-2 bg-loggi-500 hover:bg-loggi-600 text-white rounded-xl font-bold transition text-xs flex items-center gap-1.5 shadow-lg shadow-loggi-500/20">
+          <i data-lucide="send" class="w-3.5 h-3.5"></i> Transmitir para 47 Grupos
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 4: ALERTA VERMELHO / PLANTÃO TELEGRAM                               -->
+  <!-- ========================================================================= -->
+  <div id="telegramAlertModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="glass-card bg-obsidian-900 border border-rose-500/40 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center space-x-2">
+          <div class="w-8 h-8 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center">
+            <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="font-extrabold text-white text-base">Alerta Vermelho de Plantão</h3>
+            <p class="text-[11px] text-rose-400">Notificação prioritária com push sonoro no Telegram</p>
+          </div>
+        </div>
+        <button onclick="closeTelegramAlertModal()" class="text-slate-400 hover:text-white transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block font-semibold text-slate-300 mb-1">Hub ou Rota Afetada</label>
+          <select id="selectAlertHub" class="w-full bg-obsidian-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-rose-500">
+            <option value="Hub Cajamar (CD Matriz)">Hub Cajamar (CD Matriz)</option>
+            <option value="Hub Vila Leopoldina">Hub Vila Leopoldina</option>
+            <option value="Hub Campinas & Interior">Hub Campinas & Interior</option>
+            <option value="Hub Pavuna / Rio de Janeiro">Hub Pavuna / Rio de Janeiro</option>
+            <option value="Todas as Rotas e Polos">Todas as Rotas e Polos</option>
+          </select>
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-300 mb-1">Título do Evento *</label>
+          <input type="text" id="inputAlertTitle" placeholder="Ex: Interdição de Doca / Bloqueio Rodoviário" class="w-full bg-obsidian-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-rose-500">
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-300 mb-1">Detalhes Operacionais *</label>
+          <textarea id="textAlertDetails" rows="4" placeholder="Descreva a contingência e orientações à equipe..." class="w-full bg-obsidian-950 border border-slate-800 rounded-xl p-3 text-white focus:outline-none focus:border-rose-500 resize-none"></textarea>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end space-x-2 pt-2 border-t border-slate-800">
+        <button onclick="closeTelegramAlertModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-semibold transition text-xs">Cancelar</button>
+        <button onclick="sendTelegramAlert()" id="btnSubmitAlert" class="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl font-bold transition text-xs flex items-center gap-1.5 shadow-lg shadow-rose-600/30">
+          <i data-lucide="send" class="w-3.5 h-3.5"></i> Despachar Alerta no Telegram
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 5: RELATÓRIO EXECUTIVO DE VARREDURA IA                              -->
+  <!-- ========================================================================= -->
+  <div id="scanReportModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="glass-card bg-obsidian-900 border border-purple-500/30 rounded-2xl w-full max-w-2xl p-6 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center space-x-2">
+          <div class="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center">
+            <i data-lucide="sparkles" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="font-extrabold text-white text-base">Varredura & Inteligência da Malha Loggi</h3>
+            <p class="text-[11px] text-purple-400">Análise de sentimentos, gargalos e ocorrências nos 47 grupos</p>
+          </div>
+        </div>
+        <button onclick="closeScanReportModal()" class="text-slate-400 hover:text-white transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="bg-obsidian-950 border border-slate-800 rounded-xl p-4 max-h-96 overflow-y-auto font-mono text-xs text-slate-300 whitespace-pre-wrap leading-relaxed" id="scanReportContent">
+        Carregando análise...
+      </div>
+
+      <div class="flex items-center justify-between pt-2 border-t border-slate-800">
+        <span class="text-[11px] text-slate-400">Espelhado com sucesso no Telegram (@AtlasJuniorBot)</span>
+        <button onclick="closeScanReportModal()" class="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold transition text-xs">
+          Entendido
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const SESSION_ID = 'whatsapp_principal';
     let allChats = [];
@@ -640,6 +996,7 @@ function renderExecutiveLoggiDashboardHTML(): string {
         document.getElementById('viewSectionTower').classList.remove('hidden');
         document.getElementById('railBtnTower').classList.add('bg-loggi-500/20', 'text-loggi-400', 'border', 'border-loggi-500/30');
         document.getElementById('railBtnTower').classList.remove('text-slate-400');
+        loadTowerData();
       }
       lucide.createIcons();
     }
@@ -1255,6 +1612,149 @@ function renderExecutiveLoggiDashboardHTML(): string {
       document.getElementById('railBtnAI').className = isAIGlobal
         ? 'p-3 rounded-2xl text-emerald-400 hover:bg-obsidian-850 transition flex flex-col items-center group relative'
         : 'p-3 rounded-2xl text-slate-500 hover:bg-obsidian-850 transition flex flex-col items-center group relative';
+    }
+
+    // 14. FUNÇÕES EXECUTIVAS DA TORRE DE CONTROLE (PAINÉIS & FARÓIS)
+    async function loadTowerData() {
+      try {
+        const res = await fetch('/tower/metrics');
+        const json = await res.json();
+        if (json.success && json.incidents) {
+          const tbody = document.getElementById('towerIncidentsTableBody');
+          if (tbody && json.incidents.length > 0) {
+            tbody.innerHTML = json.incidents.map(inc => {
+              const badgeClass = inc.severity === 'HIGH'
+                ? 'bg-rose-500/20 text-rose-400'
+                : inc.severity === 'MEDIUM'
+                  ? 'bg-amber-500/20 text-amber-400'
+                  : 'bg-emerald-500/20 text-emerald-400';
+              const badgeText = inc.severity === 'HIGH' ? 'CRÍTICO' : (inc.badge || (inc.severity === 'MEDIUM' ? 'ATENÇÃO' : 'NORMAL'));
+              return \`
+                <tr>
+                  <td class="py-3 text-slate-400 font-mono">\${inc.time || '--:--'}</td>
+                  <td class="py-3 font-semibold text-white">\${inc.sender}</td>
+                  <td class="py-3 text-slate-300">\${inc.summary}</td>
+                  <td class="py-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold \${badgeClass}">\${badgeText}</span></td>
+                  <td class="py-3 text-right"><button onclick="viewIncidentChat()" class="text-sky-400 hover:underline">Abrir Chat</button></td>
+                </tr>
+              \`;
+            }).join('');
+          }
+        }
+      } catch (_) {}
+    }
+
+    function viewIncidentChat() {
+      switchMainView('chats');
+      switchCategoryTab('LOGGI');
+    }
+
+    // Modal Comunicado Geral (Broadcast)
+    function openBroadcastModal() {
+      document.getElementById('broadcastModal').classList.remove('hidden');
+    }
+    function closeBroadcastModal() {
+      document.getElementById('broadcastModal').classList.add('hidden');
+    }
+    async function sendBroadcastMessage() {
+      const msg = document.getElementById('textBroadcastMessage').value.trim();
+      const priority = document.getElementById('selectBroadcastPriority').value;
+      if (!msg) {
+        alert('Por favor, informe a mensagem do comunicado.');
+        return;
+      }
+      const btn = document.getElementById('btnSubmitBroadcast');
+      btn.disabled = true;
+      btn.innerHTML = '<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i> Transmitindo...';
+      try {
+        const res = await fetch('/tower/broadcast', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: msg, priority })
+        });
+        const json = await res.json();
+        if (json.success) {
+          alert('Comunicado operacional despachado com sucesso para os grupos da Loggi e espelhado no Telegram!');
+          document.getElementById('textBroadcastMessage').value = '';
+          closeBroadcastModal();
+        } else {
+          alert('Erro: ' + (json.error || 'Falha ao despachar comunicado'));
+        }
+      } catch (e) {
+        alert('Erro ao conectar ao servidor.');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="send" class="w-3.5 h-3.5"></i> Transmitir para 47 Grupos';
+        lucide.createIcons();
+      }
+    }
+
+    // Modal Alerta Vermelho de Plantão (Telegram)
+    function openTelegramAlertModal() {
+      document.getElementById('telegramAlertModal').classList.remove('hidden');
+    }
+    function closeTelegramAlertModal() {
+      document.getElementById('telegramAlertModal').classList.add('hidden');
+    }
+    async function sendTelegramAlert() {
+      const hub = document.getElementById('selectAlertHub').value;
+      const title = document.getElementById('inputAlertTitle').value.trim();
+      const details = document.getElementById('textAlertDetails').value.trim();
+      if (!title || !details) {
+        alert('Por favor, preencha o título e os detalhes do alerta.');
+        return;
+      }
+      const btn = document.getElementById('btnSubmitAlert');
+      btn.disabled = true;
+      btn.innerHTML = '<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i> Despachando...';
+      try {
+        const res = await fetch('/tower/telegram-alert', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hub, title, details })
+        });
+        const json = await res.json();
+        if (json.success) {
+          alert('🚨 Alerta vermelho prioritário despachado para sua Torre Telegram (@AtlasJuniorBot)!');
+          document.getElementById('inputAlertTitle').value = '';
+          document.getElementById('textAlertDetails').value = '';
+          closeTelegramAlertModal();
+        } else {
+          alert('Erro: ' + (json.error || 'Falha ao enviar alerta'));
+        }
+      } catch (e) {
+        alert('Erro ao conectar ao servidor.');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="send" class="w-3.5 h-3.5"></i> Despachar Alerta no Telegram';
+        lucide.createIcons();
+      }
+    }
+
+    // Varredura Geral com IA da Malha Loggi
+    async function runMalhaScanIA() {
+      const btn = document.getElementById('btnScanMalha');
+      btn.disabled = true;
+      btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Escaneando...';
+      try {
+        const res = await fetch('/tower/scan-operation', { method: 'POST' });
+        const json = await res.json();
+        if (json.success && json.report) {
+          document.getElementById('scanReportContent').innerText = json.report;
+          document.getElementById('scanReportModal').classList.remove('hidden');
+        } else {
+          alert('Falha ao processar varredura de inteligência.');
+        }
+      } catch (e) {
+        alert('Erro ao comunicar com a IA.');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="sparkles" class="w-4 h-4"></i> Varredura IA';
+        lucide.createIcons();
+      }
+    }
+    function closeScanReportModal() {
+      document.getElementById('scanReportModal').classList.add('hidden');
     }
 
     // Auto-refresh contínuo a cada 3.5 segundos

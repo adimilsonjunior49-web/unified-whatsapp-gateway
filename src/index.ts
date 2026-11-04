@@ -10,6 +10,7 @@ import { messageRoutes } from './presentation/routes/messageRoutes';
 import { healthRoutes } from './presentation/routes/healthRoutes';
 import { dashboardRoutes } from './presentation/routes/dashboardRoutes';
 import { chatAndAgentRoutes } from './presentation/routes/chatAndAgentRoutes';
+import { towerRoutes } from './presentation/routes/towerRoutes';
 import { WebhookDispatcher } from './application/webhookDispatcher';
 import { TelegramBridge } from './infrastructure/telegram/telegramBridge';
 import { sessionService } from './application/sessionService';
@@ -60,6 +61,7 @@ async function bootstrap() {
   await app.register(sessionRoutes);
   await app.register(messageRoutes);
   await app.register(chatAndAgentRoutes);
+  await app.register(towerRoutes);
 
   // 4. Inicialização de Serviços de Fundo (Webhooks & Telegram Bridge)
   WebhookDispatcher.init();
