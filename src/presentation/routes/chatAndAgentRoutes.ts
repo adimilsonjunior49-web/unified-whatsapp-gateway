@@ -56,6 +56,50 @@ export async function chatAndAgentRoutes(fastify: FastifyInstance, _opts: Fastif
     });
   });
 
+  // Listar Agenda de Contatos Salvos
+  fastify.get('/contacts/:sessionId', async (request, reply) => {
+    const { search, category, limit } = request.query as { search?: string; category?: string; limit?: string };
+    const contacts = highCapacityStore.getContacts(search, category, limit ? Number(limit) : 250);
+    return reply.send({
+      success: true,
+      count: contacts.length,
+      data: contacts
+    });
+  });
+
+  // Salvar / Atualizar Contato na Agenda
+  fastify.post('/contacts/:sessionId', async (request, reply) => {
+    const body = request.body as {
+      jid?: string;
+      name: string;
+      phone: string;
+      category?: 'LOGGI' | 'PESSOAL' | 'PARCEIRO';
+      company?: string;
+      role?: string;
+      email?: string;
+      notes?: string;
+    };
+    if (!body?.name || !body?.phone) {
+      return reply.status(400).send({ success: false, error: 'Nome e Telefone são obrigatórios.' });
+    }
+    const saved = highCapacityStore.saveContact(body);
+    return reply.send({
+      success: true,
+      message: 'Contato salvo com sucesso!',
+      data: saved
+    });
+  });
+
+  // Excluir Contato da Agenda
+  fastify.delete('/contacts/:sessionId/:jid', async (request, reply) => {
+    const { jid } = request.params as { jid: string };
+    if (!jid) {
+      return reply.status(400).send({ success: false, error: 'jid é obrigatório' });
+    }
+    highCapacityStore.deleteContact(decodeURIComponent(jid));
+    return reply.send({ success: true, message: 'Contato removido com sucesso.' });
+  });
+
   // Mover categoria da conversa (LOGGI <-> PESSOAL <-> ARQUIVADO)
   fastify.post('/chats/:sessionId/category', async (request, reply) => {
     const { jid, category } = request.body as { jid: string; category: 'LOGGI' | 'PESSOAL' | 'ARQUIVADO' };

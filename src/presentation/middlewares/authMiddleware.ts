@@ -13,6 +13,7 @@ export async function authMiddleware(request: FastifyRequest, reply: FastifyRepl
     url === '/qrcode.png' ||
     url.startsWith('/events/recent') ||
     url.startsWith('/chats') ||
+    url.startsWith('/contacts') ||
     url.startsWith('/sync') ||
     url.startsWith('/stats') ||
     url.startsWith('/agents') ||
