@@ -11,6 +11,7 @@ export interface WhatsAppSession {
   userJid?: string;
   phoneNumber?: string;
   qrCode?: string;
+  pairingCode?: string;
   webhookUrl?: string;
   createdAt: Date;
   updatedAt: Date;

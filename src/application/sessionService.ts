@@ -17,6 +17,10 @@ export class SessionService {
   public async deleteSession(sessionId: string): Promise<boolean> {
     return await baileysEngine.deleteSession(sessionId);
   }
+
+  public async requestPairingCode(sessionId: string, phoneNumber: string): Promise<string> {
+    return await baileysEngine.requestPairingCode(sessionId, phoneNumber);
+  }
 }
 
 export const sessionService = new SessionService();

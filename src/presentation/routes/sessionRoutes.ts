@@ -12,6 +12,33 @@ export async function sessionRoutes(fastify: FastifyInstance, _opts: FastifyPlug
     });
   });
 
+  // Solicitar Código de Pareamento de 8 Dígitos (Link with Phone Number)
+  fastify.post('/sessions/:sessionId/pairing-code', async (request, reply) => {
+    const { sessionId } = request.params as { sessionId: string };
+    const body = request.body as { phoneNumber: string };
+
+    if (!body?.phoneNumber) {
+      return reply.status(400).send({
+        success: false,
+        error: 'O campo "phoneNumber" é obrigatório (ex: 5511976258311).'
+      });
+    }
+
+    try {
+      const code = await sessionService.requestPairingCode(sessionId, body.phoneNumber);
+      return reply.status(200).send({
+        success: true,
+        pairingCode: code,
+        phoneNumber: body.phoneNumber
+      });
+    } catch (err: any) {
+      return reply.status(500).send({
+        success: false,
+        error: err.message
+      });
+    }
+  });
+
   // Consultar status e QR Code da sessão
   fastify.get('/sessions/:sessionId/status', async (request, reply) => {
     const { sessionId } = request.params as { sessionId: string };

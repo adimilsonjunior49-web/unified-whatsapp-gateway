@@ -1,5 +1,6 @@
 export type WebhookEvent = 
   | 'qrcode.updated' 
+  | 'pairing_code.generated'
   | 'connection.updated' 
   | 'messages.upsert' 
   | 'messages.update';

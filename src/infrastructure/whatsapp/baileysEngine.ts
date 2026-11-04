@@ -2,6 +2,7 @@ import makeWASocket, {
   useMultiFileAuthState,
   DisconnectReason,
   fetchLatestBaileysVersion,
+  Browsers,
   proto
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
@@ -58,10 +59,12 @@ export class BaileysEngine {
       logger: pino({ level: 'silent' }),
       printQRInTerminal: false,
       auth: state,
-      browser: ['Enterprise Gateway', 'Chrome', '124.0.0.0'],
+      browser: Browsers.ubuntu('Chrome'),
       syncFullHistory: false,
       defaultQueryTimeoutMs: 60000
     });
+
+    this.activeSockets.set(sessionId, sock);
 
     sock.ev.on('creds.update', saveCreds);
 
@@ -254,6 +257,47 @@ export class BaileysEngine {
       mediaType,
       timestamp: Number(msg.messageTimestamp) || Math.floor(Date.now() / 1000)
     };
+  }
+
+  /**
+   * Solicita um código de pareamento de 8 dígitos para conectar via número de telefone
+   */
+  public async requestPairingCode(sessionId: string, phoneNumber: string): Promise<string> {
+    const cleanedNumber = phoneNumber.replace(/\D/g, '');
+    let sock = this.activeSockets.get(sessionId);
+
+    if (!sock) {
+      await this.initSession(sessionId);
+      await new Promise((r) => setTimeout(r, 2000));
+      sock = this.activeSockets.get(sessionId);
+    }
+
+    if (!sock) {
+      throw new Error(`Socket da sessão "${sessionId}" não está ativo.`);
+    }
+
+    try {
+      const code = await sock.requestPairingCode(cleanedNumber);
+      const sessionData = this.sessionsState.get(sessionId);
+      if (sessionData) {
+        sessionData.pairingCode = code;
+        sessionData.phoneNumber = cleanedNumber;
+        sessionData.updatedAt = new Date();
+        this.sessionsState.set(sessionId, sessionData);
+      }
+
+      eventBus.publish({
+        event: 'pairing_code.generated',
+        sessionId,
+        timestamp: Date.now(),
+        data: { pairingCode: code, phoneNumber: cleanedNumber }
+      });
+
+      return code;
+    } catch (err: any) {
+      this.logger.error(`Erro ao solicitar pairing code para ${cleanedNumber}: ${err.message}`);
+      throw new Error(`Falha ao gerar código de pareamento: ${err.message}`);
+    }
   }
 }
 
