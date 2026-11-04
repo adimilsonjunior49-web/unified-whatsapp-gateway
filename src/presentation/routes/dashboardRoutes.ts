@@ -141,6 +141,12 @@ function renderExecutiveLoggiDashboardHTML(): string {
       <!-- Quick Actions (Meeting, Call, Telegram & AI Toggle) -->
       <div class="flex items-center space-x-2.5">
         
+        <!-- Full Sync Button -->
+        <button onclick="syncAllContactsAndHistory()" id="btnSyncNav" class="flex items-center space-x-1.5 text-xs bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 px-3 py-1.5 rounded-xl border border-emerald-500/30 transition font-bold" title="Sincronizar todos os contatos e mensagens sem pular nenhum">
+          <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+          <span class="hidden sm:inline">Sincronizar Tudo</span>
+        </button>
+
         <!-- Video Conference Button -->
         <button onclick="openMeetingModal()" class="flex items-center space-x-1.5 text-xs bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 px-3 py-1.5 rounded-xl border border-indigo-500/30 transition font-bold" title="Criar Reunião ou Teleconferência">
           <i data-lucide="video" class="w-3.5 h-3.5"></i>
@@ -210,12 +216,12 @@ function renderExecutiveLoggiDashboardHTML(): string {
 
         <!-- Footer Stats Bar -->
         <div class="p-2.5 border-t border-slate-800/80 bg-titanium-950/80 flex items-center justify-between text-[11px] text-slate-400 px-4">
-          <span class="flex items-center gap-1.5">
+          <span class="flex items-center gap-1.5" id="storageStatsText">
             <i data-lucide="database" class="w-3.5 h-3.5 text-loggi-400"></i>
             <span>SQLite Alta Capacidade Ativo</span>
           </span>
-          <button onclick="loadChats()" class="hover:text-white flex items-center gap-1 transition">
-            <i data-lucide="refresh-cw" class="w-3 h-3"></i> Atualizar
+          <button onclick="syncAllContactsAndHistory()" class="text-[11px] bg-loggi-500/20 hover:bg-loggi-500/30 text-loggi-300 px-2 py-0.5 rounded-lg border border-loggi-500/30 font-bold flex items-center gap-1 transition">
+            <i data-lucide="refresh-cw" class="w-3 h-3"></i> Sincronizar Tudo
           </button>
         </div>
       </div>
@@ -825,14 +831,61 @@ function renderExecutiveLoggiDashboardHTML(): string {
         : 'flex items-center space-x-1.5 text-xs px-3 py-1.5 rounded-xl border transition font-bold bg-slate-800 text-slate-400 border-slate-700';
     }
 
+    async function loadStats() {
+      try {
+        const res = await fetch('/stats/' + SESSION_ID);
+        const json = await res.json();
+        if (json.data) {
+          const statsEl = document.getElementById('storageStatsText');
+          if (statsEl) {
+            statsEl.innerHTML = \`
+              <i data-lucide="database" class="w-3.5 h-3.5 text-loggi-400"></i>
+              <span>\${json.data.totalChats} chats • \${json.data.totalMessages} msgs • \${json.data.totalContacts} contatos</span>
+            \`;
+            lucide.createIcons();
+          }
+        }
+      } catch (_) {}
+    }
+
+    async function syncAllContactsAndHistory() {
+      const btn = document.getElementById('btnSyncNav');
+      const origContent = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.innerHTML = '<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i> <span>Sincronizando...</span>';
+        lucide.createIcons();
+      }
+
+      try {
+        const res = await fetch('/sync/' + SESSION_ID, { method: 'POST' });
+        const json = await res.json();
+        if (json.success) {
+          alert(\`Sincronização Concluída sem pular nenhum registro!\\n\\n• Grupos Sincronizados: \${json.data?.groupsCount || 0}\\n• Total de Chats no SQLite: \${json.data?.chatsCount || 0}\\n• Mensagens Armazenadas: \${json.data?.messagesCount || 0}\\n• Contatos na Agenda: \${json.data?.contactsCount || 0}\`);
+        } else {
+          alert('Aviso: ' + (json.error || 'Erro ao sincronizar'));
+        }
+        await loadChats();
+        await loadStats();
+      } catch (err) {
+        alert('Erro ao sincronizar: ' + err.message);
+      } finally {
+        if (btn) {
+          btn.innerHTML = origContent;
+          lucide.createIcons();
+        }
+      }
+    }
+
     // Auto-refresh contínuo a cada 3.5 segundos
     setInterval(() => {
       if (activeChatJid) loadChatMessages(activeChatJid);
       loadChats();
+      loadStats();
     }, 3500);
 
     // Inicialização
     loadChats();
+    loadStats();
     lucide.createIcons();
   </script>
 </body>

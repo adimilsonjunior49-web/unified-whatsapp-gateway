@@ -29,6 +29,33 @@ export async function chatAndAgentRoutes(fastify: FastifyInstance, _opts: Fastif
     });
   });
 
+  // Disparar sincronização manual completa de contatos, grupos e histórico
+  fastify.post('/sync/:sessionId', async (request, reply) => {
+    const { sessionId } = request.params as { sessionId: string };
+    try {
+      const stats = await baileysEngine.syncAllGroupsAndContacts(sessionId);
+      return reply.send({
+        success: true,
+        message: 'Sincronização executada com sucesso!',
+        data: stats
+      });
+    } catch (e: any) {
+      return reply.status(500).send({ success: false, error: e.message });
+    }
+  });
+
+  // Estatísticas de armazenamento de alta capacidade
+  fastify.get('/stats/:sessionId', async (_request, reply) => {
+    return reply.send({
+      success: true,
+      data: {
+        totalChats: highCapacityStore.countChats(),
+        totalMessages: highCapacityStore.countMessages(),
+        totalContacts: highCapacityStore.countContacts()
+      }
+    });
+  });
+
   // Mover categoria da conversa (LOGGI <-> PESSOAL <-> ARQUIVADO)
   fastify.post('/chats/:sessionId/category', async (request, reply) => {
     const { jid, category } = request.body as { jid: string; category: 'LOGGI' | 'PESSOAL' | 'ARQUIVADO' };

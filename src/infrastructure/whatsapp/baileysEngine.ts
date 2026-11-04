@@ -148,7 +148,7 @@ export class BaileysEngine {
       printQRInTerminal: false,
       auth: state,
       browser: Browsers.ubuntu('Chrome'),
-      syncFullHistory: false,
+      syncFullHistory: true,
       defaultQueryTimeoutMs: 60000
     });
 
@@ -216,17 +216,113 @@ export class BaileysEngine {
           timestamp: Date.now(),
           data: { status: 'CONNECTED', phoneNumber: sessionData.phoneNumber }
         });
+
+        // Dispara sincronização inicial de todos os grupos e contatos
+        setTimeout(() => {
+          this.syncAllGroupsAndContacts(sessionId).catch(e => {
+            this.logger.error(`[Sync] Erro na sincronização inicial: ${e.message}`);
+          });
+        }, 1500);
       }
     });
 
-    // Escuta de mensagens recebidas
-    sock.ev.on('messages.upsert', async (m) => {
-      if (m.type === 'notify') {
-        for (const msg of m.messages) {
+    // 1. Sincronização em Massa de Histórico Multi-Device
+    sock.ev.on('messaging-history.set', ({ chats, contacts, messages, isLatest }) => {
+      this.logger.info(`[Sync Multi-Device] Sincronizando: ${chats?.length || 0} chats, ${contacts?.length || 0} contatos, ${messages?.length || 0} mensagens.`);
+
+      // Contatos
+      if (contacts && Array.isArray(contacts)) {
+        for (const c of contacts) {
+          highCapacityStore.upsertContact(c.id, c.name, c.notify);
+        }
+      }
+
+      // Chats
+      if (chats && Array.isArray(chats)) {
+        for (const chat of chats) {
+          if (!chat?.id) continue;
+          const isGroup = chat.id.endsWith('@g.us');
+          highCapacityStore.upsertChat({
+            jid: chat.id,
+            sessionId,
+            name: chat.name || '',
+            isGroup,
+            unreadCount: chat.unreadCount || 0,
+            lastTimestamp: chat.conversationTimestamp ? Number(chat.conversationTimestamp) : Math.floor(Date.now() / 1000)
+          });
+        }
+      }
+
+      // Mensagens históricas (sem pular nenhuma)
+      if (messages && Array.isArray(messages)) {
+        for (const msg of messages) {
           const normalized = this.normalizeMessage(sessionId, msg);
           if (normalized) {
-            this.saveToChatStore(sessionId, normalized);
+            highCapacityStore.saveMessage(normalized);
+          }
+        }
+      }
+    });
 
+    // 2. Sincronização contínua de contatos
+    sock.ev.on('contacts.upsert', (contacts) => {
+      for (const c of contacts) {
+        if (c?.id) {
+          highCapacityStore.upsertContact(c.id, c.name, c.notify);
+        }
+      }
+    });
+
+    sock.ev.on('contacts.update', (updates) => {
+      for (const u of updates) {
+        if (u?.id) {
+          highCapacityStore.upsertContact(u.id, u.name, u.notify);
+        }
+      }
+    });
+
+    // 3. Sincronização contínua de chats
+    sock.ev.on('chats.upsert', (newChats) => {
+      for (const chat of newChats) {
+        if (!chat?.id) continue;
+        const isGroup = chat.id.endsWith('@g.us');
+        highCapacityStore.upsertChat({
+          jid: chat.id,
+          sessionId,
+          name: chat.name || '',
+          isGroup,
+          unreadCount: chat.unreadCount || 0,
+          lastTimestamp: chat.conversationTimestamp ? Number(chat.conversationTimestamp) : Math.floor(Date.now() / 1000)
+        });
+      }
+    });
+
+    sock.ev.on('chats.update', (updates) => {
+      for (const u of updates) {
+        if (u.id) {
+          const isGroup = u.id.endsWith('@g.us');
+          highCapacityStore.upsertChat({
+            jid: u.id,
+            sessionId,
+            name: (u as any).name || '',
+            isGroup,
+            unreadCount: u.unreadCount || 0,
+            lastTimestamp: u.conversationTimestamp ? Number(u.conversationTimestamp) : undefined
+          });
+        }
+      }
+    });
+
+    // 4. Escuta de mensagens recebidas (em tempo real 'notify' e sincronizadas 'append')
+    sock.ev.on('messages.upsert', async (m) => {
+      const isRealtime = m.type === 'notify';
+      for (const msg of m.messages) {
+        const normalized = this.normalizeMessage(sessionId, msg);
+        if (normalized) {
+          this.saveToChatStore(sessionId, normalized);
+
+          // Dispara eventos em tempo real para o dashboard e Telegram
+          if (isRealtime) {
             eventBus.publish({
               event: 'messages.upsert',
               sessionId,
@@ -234,8 +330,9 @@ export class BaileysEngine {
               data: normalized
             });
 
-            // Resposta autônoma de IA via AgencyHub (se ativada)
-            if (!normalized.isFromMe && !normalized.isGroup && normalized.text) {
+            // Resposta autônoma de IA via AgencyHub (se ativada, para mensagens recentes)
+            const isFresh = (Math.floor(Date.now() / 1000) - normalized.timestamp) < 120;
+            if (isFresh && !normalized.isFromMe && !normalized.isGroup && normalized.text) {
               this.handleAIResponse(sessionId, normalized);
             }
           }
@@ -267,6 +364,52 @@ export class BaileysEngine {
 
     this.sessionsState.delete(sessionId);
     return true;
+  }
+
+  /**
+   * Sincroniza ativamente todos os grupos, contatos e participantes
+   */
+  public async syncAllGroupsAndContacts(sessionId: string): Promise<{ groupsCount: number; contactsCount: number; chatsCount: number; messagesCount: number }> {
+    const sock = this.activeSockets.get(sessionId);
+    if (!sock) {
+      throw new Error(`Sessão ${sessionId} não está ativa.`);
+    }
+
+    this.logger.info(`[Sync Manual] Iniciando sincronização completa de grupos e contatos para ${sessionId}...`);
+    let groupsCount = 0;
+
+    try {
+      // 1. Busca todos os grupos que o usuário participa
+      const groups = await sock.groupFetchAllParticipating();
+      for (const [jid, g] of Object.entries(groups)) {
+        const group = g as any;
+        groupsCount++;
+        highCapacityStore.upsertChat({
+          jid,
+          sessionId,
+          name: group.subject || 'Grupo Loggi',
+          category: 'LOGGI',
+          isGroup: true,
+          lastTimestamp: group.creation || Math.floor(Date.now() / 1000)
+        });
+
+        // 2. Extrai e salva todos os participantes do grupo na agenda de contatos
+        if (group.participants && Array.isArray(group.participants)) {
+          for (const p of group.participants) {
+            highCapacityStore.upsertContact(p.id, undefined, p.id.split('@')[0]);
+          }
+        }
+      }
+    } catch (e: any) {
+      this.logger.warn(`[Sync] Aviso ao buscar grupos: ${e.message}`);
+    }
+
+    return {
+      groupsCount,
+      contactsCount: highCapacityStore.countContacts(),
+      chatsCount: highCapacityStore.countChats(),
+      messagesCount: highCapacityStore.countMessages()
+    };
   }
 
   /**

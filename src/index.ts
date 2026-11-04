@@ -12,6 +12,7 @@ import { dashboardRoutes } from './presentation/routes/dashboardRoutes';
 import { chatAndAgentRoutes } from './presentation/routes/chatAndAgentRoutes';
 import { WebhookDispatcher } from './application/webhookDispatcher';
 import { TelegramBridge } from './infrastructure/telegram/telegramBridge';
+import { sessionService } from './application/sessionService';
 
 const app = Fastify({
   logger: {
@@ -63,6 +64,9 @@ async function bootstrap() {
   // 4. Inicialização de Serviços de Fundo (Webhooks & Telegram Bridge)
   WebhookDispatcher.init();
   TelegramBridge.getInstance();
+
+  // Restaura automaticamente todas as sessões salvas do WhatsApp
+  await sessionService.restoreExistingSessions();
 
   // 5. Start Server
   try {
