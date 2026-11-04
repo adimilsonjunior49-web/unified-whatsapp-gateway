@@ -1,0 +1,260 @@
+import makeWASocket, {
+  useMultiFileAuthState,
+  DisconnectReason,
+  fetchLatestBaileysVersion,
+  proto
+} from '@whiskeysockets/baileys';
+import { Boom } from '@hapi/boom';
+import pino from 'pino';
+import path from 'path';
+import fs from 'fs';
+import QRCode from 'qrcode';
+
+import { ENV } from '../../config/env';
+import { WhatsAppSession, SessionStatus } from '../../domain/session';
+import { NormalizedMessage, SendMessageRequest } from '../../domain/message';
+import { eventBus } from '../queue/eventBus';
+
+export class BaileysEngine {
+  private activeSockets: Map<string, any> = new Map();
+  private sessionsState: Map<string, WhatsAppSession> = new Map();
+  private logger = pino({ level: 'info' });
+
+  public getSession(sessionId: string): WhatsAppSession | undefined {
+    return this.sessionsState.get(sessionId);
+  }
+
+  public getAllSessions(): WhatsAppSession[] {
+    return Array.from(this.sessionsState.values());
+  }
+
+  /**
+   * Inicializa ou restaura uma sessão independente
+   */
+  public async initSession(sessionId: string): Promise<WhatsAppSession> {
+    const existing = this.sessionsState.get(sessionId);
+    if (existing && existing.status === 'CONNECTED') {
+      return existing;
+    }
+
+    const sessionDir = path.join(ENV.SESSIONS_DIR, sessionId);
+    if (!fs.existsSync(sessionDir)) {
+      fs.mkdirSync(sessionDir, { recursive: true });
+    }
+
+    const sessionData: WhatsAppSession = {
+      id: sessionId,
+      status: 'CONNECTING',
+      createdAt: existing?.createdAt || new Date(),
+      updatedAt: new Date()
+    };
+    this.sessionsState.set(sessionId, sessionData);
+
+    const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
+    const { version } = await fetchLatestBaileysVersion();
+
+    const sock = makeWASocket({
+      version,
+      logger: pino({ level: 'silent' }),
+      printQRInTerminal: false,
+      auth: state,
+      browser: ['Enterprise Gateway', 'Chrome', '124.0.0.0'],
+      syncFullHistory: false,
+      defaultQueryTimeoutMs: 60000
+    });
+
+    sock.ev.on('creds.update', saveCreds);
+
+    sock.ev.on('connection.update', async (update) => {
+      const { connection, lastDisconnect, qr } = update;
+
+      if (qr) {
+        sessionData.status = 'SCAN_QR_CODE';
+        sessionData.qrCode = await QRCode.toDataURL(qr);
+        sessionData.updatedAt = new Date();
+        this.sessionsState.set(sessionId, sessionData);
+
+        eventBus.publish({
+          event: 'qrcode.updated',
+          sessionId,
+          timestamp: Date.now(),
+          data: { qrCode: sessionData.qrCode }
+        });
+      }
+
+      if (connection === 'close') {
+        const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
+        const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+
+        this.logger.warn(`[Sessão ${sessionId}] Conexão fechada. Status: ${statusCode}. Reconectar: ${shouldReconnect}`);
+
+        if (shouldReconnect) {
+          sessionData.status = 'CONNECTING';
+          this.sessionsState.set(sessionId, sessionData);
+          setTimeout(() => this.initSession(sessionId), 4000);
+        } else {
+          sessionData.status = 'DISCONNECTED';
+          sessionData.qrCode = undefined;
+          this.sessionsState.set(sessionId, sessionData);
+          this.activeSockets.delete(sessionId);
+          try {
+            fs.rmSync(sessionDir, { recursive: true, force: true });
+          } catch (_) {}
+        }
+
+        eventBus.publish({
+          event: 'connection.updated',
+          sessionId,
+          timestamp: Date.now(),
+          data: { status: sessionData.status, reason: statusCode }
+        });
+      } else if (connection === 'open') {
+        sessionData.status = 'CONNECTED';
+        sessionData.qrCode = undefined;
+        sessionData.userJid = sock.user?.id;
+        sessionData.phoneNumber = sock.user?.id ? sock.user.id.split(':')[0] : undefined;
+        sessionData.updatedAt = new Date();
+        this.sessionsState.set(sessionId, sessionData);
+        this.activeSockets.set(sessionId, sock);
+
+        this.logger.info(`[Sessão ${sessionId}] CONECTADA com sucesso! Usuário: ${sessionData.phoneNumber}`);
+
+        eventBus.publish({
+          event: 'connection.updated',
+          sessionId,
+          timestamp: Date.now(),
+          data: { status: 'CONNECTED', phoneNumber: sessionData.phoneNumber }
+        });
+      }
+    });
+
+    // Escuta de mensagens recebidas
+    sock.ev.on('messages.upsert', async (m) => {
+      if (m.type === 'notify') {
+        for (const msg of m.messages) {
+          const normalized = this.normalizeMessage(sessionId, msg);
+          if (normalized) {
+            eventBus.publish({
+              event: 'messages.upsert',
+              sessionId,
+              timestamp: Date.now(),
+              data: normalized
+            });
+          }
+        }
+      }
+    });
+
+    return sessionData;
+  }
+
+  /**
+   * Encerra e desconecta uma sessão ativa
+   */
+  public async deleteSession(sessionId: string): Promise<boolean> {
+    const sock = this.activeSockets.get(sessionId);
+    if (sock) {
+      try {
+        await sock.logout();
+      } catch (_) {}
+      this.activeSockets.delete(sessionId);
+    }
+
+    const sessionDir = path.join(ENV.SESSIONS_DIR, sessionId);
+    if (fs.existsSync(sessionDir)) {
+      try {
+        fs.rmSync(sessionDir, { recursive: true, force: true });
+      } catch (_) {}
+    }
+
+    this.sessionsState.delete(sessionId);
+    return true;
+  }
+
+  /**
+   * Envia uma mensagem estruturada pelo WhatsApp
+   */
+  public async sendMessage(sessionId: string, payload: SendMessageRequest): Promise<any> {
+    const sock = this.activeSockets.get(sessionId);
+    if (!sock) {
+      throw new Error(`Sessão ${sessionId} não está ativa.`);
+    }
+
+    const rawTo = payload.to.replace(/\D/g, '');
+    const jid = payload.to.includes('@') ? payload.to : `${rawTo}@s.whatsapp.net`;
+
+    // 1. Mensagem de Texto
+    if (payload.text && !payload.mediaUrl) {
+      return await sock.sendMessage(jid, { text: payload.text });
+    }
+
+    // 2. Áudio Nativo de Voz (PTT com Waveform Opus)
+    if (payload.mediaType === 'voice' && payload.mediaUrl) {
+      return await sock.sendMessage(jid, {
+        audio: { url: payload.mediaUrl },
+        mimetype: 'audio/ogg; codecs=opus',
+        ptt: true
+      });
+    }
+
+    // 3. Mídia Geral (Imagem, Vídeo ou Documento)
+    if (payload.mediaUrl) {
+      const type = payload.mediaType || 'document';
+      return await sock.sendMessage(jid, {
+        [type]: { url: payload.mediaUrl },
+        caption: payload.text,
+        fileName: payload.fileName
+      });
+    }
+
+    throw new Error('Payload de envio inválido.');
+  }
+
+  /**
+   * Normaliza payload do Baileys para o contrato universal de mensagem
+   */
+  private normalizeMessage(sessionId: string, msg: proto.IWebMessageInfo): NormalizedMessage | null {
+    if (!msg.key || !msg.message) return null;
+
+    const remoteJid = msg.key.remoteJid || '';
+    const isGroup = remoteJid.endsWith('@g.us');
+    const senderJid = msg.key.participant || remoteJid;
+    const isFromMe = Boolean(msg.key.fromMe);
+
+    let text = '';
+    let mediaType: NormalizedMessage['mediaType'] = 'text';
+
+    if (msg.message.conversation) {
+      text = msg.message.conversation;
+    } else if (msg.message.extendedTextMessage?.text) {
+      text = msg.message.extendedTextMessage.text;
+    } else if (msg.message.audioMessage) {
+      mediaType = 'voice';
+      text = '[Mensagem de Voz]';
+    } else if (msg.message.imageMessage) {
+      mediaType = 'image';
+      text = msg.message.imageMessage.caption || '[Imagem]';
+    } else if (msg.message.videoMessage) {
+      mediaType = 'video';
+      text = msg.message.videoMessage.caption || '[Vídeo]';
+    } else if (msg.message.documentMessage) {
+      mediaType = 'document';
+      text = msg.message.documentMessage.fileName || '[Documento]';
+    }
+
+    return {
+      id: msg.key.id || `MSG-${Date.now()}`,
+      sessionId,
+      remoteJid,
+      senderJid,
+      senderName: msg.pushName || senderJid.split('@')[0],
+      isFromMe,
+      isGroup,
+      text,
+      mediaType,
+      timestamp: Number(msg.messageTimestamp) || Math.floor(Date.now() / 1000)
+    };
+  }
+}
+
+export const baileysEngine = new BaileysEngine();
