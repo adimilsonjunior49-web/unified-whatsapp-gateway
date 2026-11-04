@@ -2,7 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { ENV } from '../../config/env';
 
 export async function authMiddleware(request: FastifyRequest, reply: FastifyReply) {
-  // Ignora autenticação na documentação do Swagger, Health Check e Dashboard Web / PWA
+  // Ignora autenticação na documentação do Swagger, Health Check, Dashboard Web, QR Code e PWA
   const url = request.url;
   if (
     url.startsWith('/documentation') ||
@@ -10,6 +10,7 @@ export async function authMiddleware(request: FastifyRequest, reply: FastifyRepl
     url === '/' ||
     url.startsWith('/dashboard') ||
     url === '/manifest.json' ||
+    url === '/qrcode.png' ||
     url.startsWith('/events/recent') ||
     url === '/favicon.ico'
   ) {
