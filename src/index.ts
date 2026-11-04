@@ -9,6 +9,7 @@ import { sessionRoutes } from './presentation/routes/sessionRoutes';
 import { messageRoutes } from './presentation/routes/messageRoutes';
 import { healthRoutes } from './presentation/routes/healthRoutes';
 import { dashboardRoutes } from './presentation/routes/dashboardRoutes';
+import { chatAndAgentRoutes } from './presentation/routes/chatAndAgentRoutes';
 import { WebhookDispatcher } from './application/webhookDispatcher';
 
 const app = Fastify({
@@ -56,6 +57,7 @@ async function bootstrap() {
   await app.register(healthRoutes);
   await app.register(sessionRoutes);
   await app.register(messageRoutes);
+  await app.register(chatAndAgentRoutes);
 
   // 4. Inicialização de Serviços de Fundo (Webhooks)
   WebhookDispatcher.init();

@@ -15,10 +15,21 @@ import { ENV } from '../../config/env';
 import { WhatsAppSession, SessionStatus } from '../../domain/session';
 import { NormalizedMessage, SendMessageRequest } from '../../domain/message';
 import { eventBus } from '../queue/eventBus';
+import { agencyHub } from '../agents/agencyHub';
+
+export interface ChatSummary {
+  remoteJid: string;
+  name: string;
+  lastMessage: string;
+  timestamp: number;
+  unreadCount: number;
+  messages: NormalizedMessage[];
+}
 
 export class BaileysEngine {
   private activeSockets: Map<string, any> = new Map();
   private sessionsState: Map<string, WhatsAppSession> = new Map();
+  private chatStore: Map<string, Map<string, ChatSummary>> = new Map();
   private logger = pino({ level: 'info' });
 
   public getSession(sessionId: string): WhatsAppSession | undefined {
@@ -27,6 +38,40 @@ export class BaileysEngine {
 
   public getAllSessions(): WhatsAppSession[] {
     return Array.from(this.sessionsState.values());
+  }
+
+  public getChats(sessionId: string): ChatSummary[] {
+    const sessionChats = this.chatStore.get(sessionId);
+    if (!sessionChats) return [];
+    return Array.from(sessionChats.values()).sort((a, b) => b.timestamp - a.timestamp);
+  }
+
+  public getChatMessages(sessionId: string, remoteJid: string): NormalizedMessage[] {
+    const sessionChats = this.chatStore.get(sessionId);
+    if (!sessionChats) return [];
+    const chat = sessionChats.get(remoteJid);
+    return chat ? chat.messages : [];
+  }
+
+  private saveToChatStore(sessionId: string, msg: NormalizedMessage): void {
+    if (!this.chatStore.has(sessionId)) {
+      this.chatStore.set(sessionId, new Map());
+    }
+    const sessionChats = this.chatStore.get(sessionId)!;
+    const existing = sessionChats.get(msg.remoteJid);
+
+    const messages = existing ? [...existing.messages, msg] : [msg];
+    // Mantém no máximo 100 mensagens no histórico por contato
+    if (messages.length > 100) messages.shift();
+
+    sessionChats.set(msg.remoteJid, {
+      remoteJid: msg.remoteJid,
+      name: msg.senderName || msg.remoteJid.split('@')[0],
+      lastMessage: msg.text || (msg.mediaType ? `[${msg.mediaType}]` : ''),
+      timestamp: msg.timestamp,
+      unreadCount: msg.isFromMe ? 0 : (existing ? existing.unreadCount + 1 : 1),
+      messages
+    });
   }
 
   /**
@@ -137,12 +182,19 @@ export class BaileysEngine {
         for (const msg of m.messages) {
           const normalized = this.normalizeMessage(sessionId, msg);
           if (normalized) {
+            this.saveToChatStore(sessionId, normalized);
+
             eventBus.publish({
               event: 'messages.upsert',
               sessionId,
               timestamp: Date.now(),
               data: normalized
             });
+
+            // Resposta autônoma de IA via AgencyHub (se ativada)
+            if (!normalized.isFromMe && !normalized.isGroup && normalized.text) {
+              this.handleAIResponse(sessionId, normalized);
+            }
           }
         }
       }
@@ -185,32 +237,72 @@ export class BaileysEngine {
 
     const rawTo = payload.to.replace(/\D/g, '');
     const jid = payload.to.includes('@') ? payload.to : `${rawTo}@s.whatsapp.net`;
+    let result: any;
 
     // 1. Mensagem de Texto
     if (payload.text && !payload.mediaUrl) {
-      return await sock.sendMessage(jid, { text: payload.text });
-    }
-
-    // 2. Áudio Nativo de Voz (PTT com Waveform Opus)
-    if (payload.mediaType === 'voice' && payload.mediaUrl) {
-      return await sock.sendMessage(jid, {
+      result = await sock.sendMessage(jid, { text: payload.text });
+    } else if (payload.mediaType === 'voice' && payload.mediaUrl) {
+      // 2. Áudio Nativo de Voz (PTT com Waveform Opus)
+      result = await sock.sendMessage(jid, {
         audio: { url: payload.mediaUrl },
         mimetype: 'audio/ogg; codecs=opus',
         ptt: true
       });
-    }
-
-    // 3. Mídia Geral (Imagem, Vídeo ou Documento)
-    if (payload.mediaUrl) {
+    } else if (payload.mediaUrl) {
+      // 3. Mídia Geral (Imagem, Vídeo ou Documento)
       const type = payload.mediaType || 'document';
-      return await sock.sendMessage(jid, {
+      result = await sock.sendMessage(jid, {
         [type]: { url: payload.mediaUrl },
         caption: payload.text,
         fileName: payload.fileName
       });
+    } else {
+      throw new Error('Payload de envio inválido.');
     }
 
-    throw new Error('Payload de envio inválido.');
+    // Registra envio no Chat Store
+    const sentMsg: NormalizedMessage = {
+      id: result?.key?.id || `MSG-${Date.now()}`,
+      sessionId,
+      remoteJid: jid,
+      senderJid: sock.user?.id || 'me',
+      senderName: 'Você',
+      isFromMe: true,
+      isGroup: jid.endsWith('@g.us'),
+      text: payload.text || (payload.mediaType === 'voice' ? '[Áudio de Voz PTT]' : '[Mídia]'),
+      mediaType: payload.mediaType || 'text',
+      timestamp: Math.floor(Date.now() / 1000)
+    };
+    this.saveToChatStore(sessionId, sentMsg);
+
+    return result;
+  }
+
+  /**
+   * Responde de forma autônoma utilizando a Persona ativa do AgencyHub
+   */
+  private async handleAIResponse(sessionId: string, msg: NormalizedMessage): Promise<void> {
+    try {
+      const sock = this.activeSockets.get(sessionId);
+      if (!sock) return;
+
+      const aiReply = await agencyHub.generateResponse(msg);
+      if (!aiReply) return;
+
+      // Simulação humana: "Digitando..." por 2 a 3 segundos
+      await sock.sendPresenceUpdate('composing', msg.remoteJid);
+      await new Promise(r => setTimeout(r, 2500));
+
+      await this.sendMessage(sessionId, {
+        to: msg.remoteJid,
+        text: aiReply
+      });
+
+      await sock.sendPresenceUpdate('paused', msg.remoteJid);
+    } catch (err: any) {
+      this.logger.error(`[IA Agent] Falha ao despachar resposta: ${err.message}`);
+    }
   }
 
   /**

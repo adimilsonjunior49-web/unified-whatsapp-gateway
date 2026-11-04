@@ -12,6 +12,8 @@ export async function authMiddleware(request: FastifyRequest, reply: FastifyRepl
     url === '/manifest.json' ||
     url === '/qrcode.png' ||
     url.startsWith('/events/recent') ||
+    url.startsWith('/chats') ||
+    url.startsWith('/agents') ||
     url === '/favicon.ico'
   ) {
     return;
