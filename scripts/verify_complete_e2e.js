@@ -135,6 +135,34 @@ async function runFullE2ETest() {
   const startupVbs = 'C:\\Users\\Home\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\StartAtlasLoggiGateway.vbs';
   check('Watchdog & Inicialização Automática com o Windows', fs.existsSync(startupVbs), `(${startupVbs})`);
 
+  // 16. Previsão do Tempo Dinâmica & Temas Adaptativos
+  const w = await get('/api/weather');
+  check('Previsão do Tempo Dinâmica & Adaptação de Temas (Open-Meteo)', w.status === 200 && w.data?.success === true && typeof w.data?.temperature === 'number', `(${w.data?.temperature}°C • ${w.data?.conditionLabel} • Tema: ${w.data?.recommendedTheme})`);
+
+  // 17. Radar News & Inteligência de Mercado e IA
+  const nw = await get('/api/news');
+  check('Radar News & Mercado de Atuação & IA', nw.status === 200 && nw.data?.articles?.length >= 5, `(${nw.data?.articles?.length} artigos com análise de impacto Loggi)`);
+
+  // 18. Feed Consolidado de Grupos & Menções VIP
+  const gf = await get('/groups/consolidated-messages?mentionedOnly=false');
+  const gfVip = await get('/groups/consolidated-messages?mentionedOnly=true');
+  check('Feed Consolidado de Grupos & Menções VIP (@Adimilson)', gf.status === 200 && gf.data?.messages?.length > 0 && gfVip.status === 200, `(${gf.data?.messages?.length} msgs nos grupos, ${gf.data?.totalMentions} menções VIP)`);
+
+  // 19. Painel Analítico & Gráficos Horários de Carga
+  const an = await get('/tower/analytics-charts');
+  check('Painéis Analíticos & Telemetria por Hora', an.status === 200 && an.data?.hourlyThroughput?.length > 0, `(${an.data?.hourlyThroughput?.length} faixas horárias, ${an.data?.hubsDistribution?.length} polos monitorados)`);
+
+  // 20. Validação de Resposta Automática Humanizada EXCLUSIVA para contato Loggi
+  const { highCapacityStore } = require('../dist/infrastructure/storage/highCapacityStore');
+  const isLoggiAllowed = highCapacityStore.isLoggiContact('1203630291823719@g.us', 'Grupo Loggi Cajamar', 'Carreta doca 04');
+  const isPessoalBlocked = highCapacityStore.isLoggiContact('5511999998888@s.whatsapp.net', 'Tia Maria', 'Oi sumido, vai no almoço?');
+  check('Filtro de Resposta de IA Exclusivo Loggi (Silêncio Pessoal)', isLoggiAllowed === true && isPessoalBlocked === false, '(Permitido para Loggi: SIM • Silêncio em Pessoal: SIM)');
+
+  // 21. Topbar Adaptativo e Interface PWA (public/index.html)
+  const publicIndex = path.join(__dirname, '..', 'public', 'index.html');
+  const indexHtml = fs.readFileSync(publicIndex, 'utf8');
+  check('Interface Adaptativa (Relógio, Clima, Feed Grupos, News & PWA)', fs.existsSync(publicIndex) && indexHtml.includes('theme-night-rain') && indexHtml.includes('viewSectionGroupfeed') && indexHtml.includes('viewSectionNews'), `(Tamanho: ${Math.round(indexHtml.length / 1024)} KB)`);
+
   console.log('\n================================================================');
   console.log(`📊 RESULTADO FINAL: ${passed}/${total} ETAPAS APROVADAS (${Math.round((passed/total)*100)}%)`);
   console.log('================================================================\n');

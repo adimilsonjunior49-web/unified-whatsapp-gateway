@@ -412,10 +412,15 @@ export class BaileysEngine {
               data: normalized
             });
 
-            // Resposta autônoma de IA via AgencyHub (se ativada, para mensagens recentes)
+            // Resposta autônoma de IA via AgencyHub (estritamente para contatos LOGGI, de forma humanizada)
             const isFresh = (Math.floor(Date.now() / 1000) - normalized.timestamp) < 120;
             if (isFresh && !normalized.isFromMe && !normalized.isGroup && normalized.text) {
-              this.handleAIResponse(sessionId, normalized);
+              const isLoggi = highCapacityStore.isLoggiContact(normalized.remoteJid, normalized.senderName, normalized.text);
+              if (isLoggi) {
+                this.handleAIResponse(sessionId, normalized);
+              } else {
+                this.logger.info(`[AutoReply Silenciado] Contato ${normalized.remoteJid} (${normalized.senderName}) não é Loggi (pessoal ou não-loggi). Nenhuma resposta enviada.`);
+              }
             }
           }
         }
@@ -561,6 +566,11 @@ export class BaileysEngine {
    */
   private async handleAIResponse(sessionId: string, msg: NormalizedMessage): Promise<void> {
     try {
+      // Bloqueio rigoroso: Resposta automática exclusiva para contatos e fluxos Loggi
+      if (!highCapacityStore.isLoggiContact(msg.remoteJid, msg.senderName, msg.text)) {
+        return;
+      }
+
       const sock = this.activeSockets.get(sessionId);
       if (!sock) return;
 

@@ -183,11 +183,11 @@ export class AgencyHub {
 
     // 3. Fallback inteligente e humanizado baseado em contexto
     const lower = textToProcess.toLowerCase();
-    if (lower.includes('olá') || lower.includes('bom dia') || lower.includes('boa tarde') || lower.includes('boa noite')) {
-      return `Olá! Sou ${persona.name} da equipe de operações. Como posso te auxiliar agora?`;
+    if (lower.includes('olá') || lower.includes('ola') || lower.includes('bom dia') || lower.includes('boa tarde') || lower.includes('boa noite')) {
+      return `Olá! Como posso te ajudar na operação hoje?`;
     }
 
-    return `Recebido! Mensagem registrada na Torre de Controle da Loggi.`;
+    return `Entendido! Mensagem registrada na Torre de Controle da Loggi. Logo te dou um retorno.`;
   }
 }
 
