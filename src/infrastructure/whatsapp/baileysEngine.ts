@@ -42,6 +42,10 @@ export class BaileysEngine {
     return this.sessionsState.get(sessionId);
   }
 
+  public getSocket(sessionId: string): any {
+    return this.activeSockets.get(sessionId);
+  }
+
   public getAllSessions(): WhatsAppSession[] {
     return Array.from(this.sessionsState.values());
   }

@@ -68,4 +68,14 @@ export async function messageRoutes(fastify: FastifyInstance, _opts: FastifyPlug
       });
     }
   });
+
+  // Telemetria e Monitoramento da Fila Anti-Ban
+  fastify.get('/messages/anti-ban/status', async (_request, reply) => {
+    const { antiBanQueue } = await import('../../infrastructure/queue/antiBanQueue');
+    const telemetry = antiBanQueue.getTelemetry();
+    return reply.send({
+      success: true,
+      telemetry
+    });
+  });
 }

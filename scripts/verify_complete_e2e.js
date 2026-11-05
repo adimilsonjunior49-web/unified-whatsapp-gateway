@@ -210,8 +210,25 @@ async function runFullE2ETest() {
   check('Disparo de Webhook com Header X-Atlas-Signature-256', whTest.status === 200 && (whTest.data?.success === true || typeof whTest.data?.statusCode === 'number'), `(Entrega validada com HMAC-SHA256)`);
 
   // 30. Command Palette Global (Ctrl+K) & Soundscape Web Audio API no PWA
-  const indexHasPalette = indexHtml.includes('commandPaletteModal') && indexHtml.includes('toggleCommandPalette') && indexHtml.includes('playAtlasSound');
+  const currentHtml = fs.readFileSync(publicIndex, 'utf8');
+  const indexHasPalette = currentHtml.includes('commandPaletteModal') && currentHtml.includes('toggleCommandPalette') && currentHtml.includes('playAtlasSound');
   check('Command Palette Global (Ctrl+K) & Soundscape Háptico Web Audio API', indexHasPalette === true, '(Busca Raycast/Linear ativa • Síntese sonora harmônica sem dependências)');
+
+  // 31. Geofencing Geoespacial dos CDs Loggi & Entrada em Docas (Turf.js Style)
+  const geof = await get('/logistics/geofences');
+  check('Geofencing Geoespacial & Cercas Virtuais dos CDs (Turf.js Engine)', geof.status === 200 && geof.data?.success === true && geof.data?.hubs?.length === 4 && geof.data?.vehicles?.length > 0, `(${geof.data?.hubs?.length} polos monitorados • Veículo ${geof.data?.vehicles?.[0]?.vehicleId}: ${geof.data?.vehicles?.[0]?.statusLabel})`);
+
+  // 32. Fila Inteligente Anti-Ban com Jitter & Throttling Orgânico (Bottleneck Style)
+  const ab = await get('/messages/anti-ban/status');
+  check('Fila Inteligente Anti-Ban com Jitter Orgânico (Bottleneck/P-Queue)', ab.status === 200 && ab.data?.success === true && typeof ab.data?.telemetry?.healthScore === 'number', `(Score: ${ab.data?.telemetry?.healthScore}% • Status: ${ab.data?.telemetry?.status} • Limite: ${ab.data?.telemetry?.maxPerHour}/h)`);
+
+  // 33. Métricas Corporativas Prometheus para Grafana (/metrics)
+  const prom = await get('/metrics');
+  check('Exportação de Métricas Prometheus para Grafana (/metrics)', prom.status === 200 && typeof prom.data === 'string' && prom.data.includes('atlas_antiban_health_score 100'), '(Métricas de mensagens, heap, uptime e integridade ativas)');
+
+  // 34. Driver.js Tour Interativo & Painel de Geofencing no PWA Frontend
+  const hasDriverAndGeofence = currentHtml.includes('driver.js') && currentHtml.includes('startSystemTour') && currentHtml.includes('geofencingSectionCard');
+  check('Tour Guiado Interativo (Driver.js) & Painel Geofencing no PWA', hasDriverAndGeofence === true, '(Guia passo-a-passo e monitor perimétrico de satélite renderizados)');
 
   console.log('\n================================================================');
   console.log(`📊 RESULTADO FINAL: ${passed}/${total} ETAPAS APROVADAS (${Math.round((passed/total)*100)}%)`);

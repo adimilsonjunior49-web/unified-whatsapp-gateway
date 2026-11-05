@@ -27,6 +27,7 @@ export async function authMiddleware(request: FastifyRequest, reply: FastifyRepl
     url.startsWith('/receipts') ||
     url.startsWith('/backup') ||
     url.startsWith('/webhooks') ||
+    url === '/metrics' ||
     url.startsWith('/api/') ||
     url === '/icon.svg' ||
     url === '/favicon.ico'

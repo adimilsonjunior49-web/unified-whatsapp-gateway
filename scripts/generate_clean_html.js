@@ -32,6 +32,10 @@ const htmlContent = `<!DOCTYPE html>
   <!-- HTML5 QR Code & Barcode Scanner Library via Webcam -->
   <script src="https://unpkg.com/html5-qrcode"></script>
 
+  <!-- Driver.js para Onboarding e Tour Interativo (Padrão GitHub Top Tier) -->
+  <script src="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.js.iife.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.css"/>
+
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -324,6 +328,12 @@ const htmlContent = `<!DOCTYPE html>
           <i data-lucide="command" class="w-3.5 h-3.5 text-sky-400 group-hover:scale-110 transition-transform"></i>
           <span>Buscar ou Comando...</span>
           <kbd class="px-1.5 py-0.5 rounded bg-black/60 border border-white/10 text-[10px] font-mono text-slate-400 group-hover:text-sky-300">Ctrl K</kbd>
+        </button>
+
+        <!-- Tour Interativo do Cockpit (Driver.js) -->
+        <button onclick="startSystemTour()" id="tourGuideBtn" class="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 hover:bg-amber-500/20 transition text-xs font-bold" title="Iniciar Tour Guiado do Sistema (Driver.js)">
+          <i data-lucide="compass" class="w-3.5 h-3.5 text-amber-400"></i>
+          <span>Tour Guiado</span>
         </button>
 
         <!-- Swagger Docs OpenAPI 3.0 Link -->
@@ -745,6 +755,51 @@ const htmlContent = `<!DOCTYPE html>
           </h3>
           <div id="hubsCardsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <!-- Hubs renderizados via JavaScript -->
+          </div>
+        </div>
+
+        <!-- NOVO: GEOFENCING DOS CENTROS DE DISTRIBUIÇÃO LOGGI (TURF.JS GEOENGINE) -->
+        <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-4" id="geofencingSectionCard">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-3">
+            <div class="flex items-center space-x-3">
+              <div class="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+                <i data-lucide="shield-check" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <h3 class="text-sm font-extrabold text-white flex items-center gap-2">
+                  Cercas Virtuais dos CDs Loggi & Entrada de Carretas (Geofencing Turf)
+                </h3>
+                <p class="text-xs text-slate-400">Detecção perimétrica por satélite em torno de Cajamar, Leopoldina, Campinas e Pavuna.</p>
+              </div>
+            </div>
+            <button onclick="loadGeofencesData()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-xl flex items-center gap-1.5 transition font-semibold">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-emerald-400"></i> Atualizar Cercas
+            </button>
+          </div>
+
+          <!-- Cards das 4 Cercas Virtuais dos Polos -->
+          <div id="geofencesHubsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <!-- Renderizado dinamicamente via JS -->
+          </div>
+
+          <!-- Tabela de Aproximação de Carretas e ETA para as Docas -->
+          <div class="overflow-x-auto pt-2">
+            <table class="w-full text-left text-xs">
+              <thead class="border-b border-slate-800 text-slate-400 font-mono text-[11px]">
+                <tr>
+                  <th class="py-2.5">Veículo</th>
+                  <th class="py-2.5">Motorista</th>
+                  <th class="py-2.5">Polo Mais Próximo</th>
+                  <th class="py-2.5">Distância Cerca</th>
+                  <th class="py-2.5">Status Perímetro</th>
+                  <th class="py-2.5">ETA Previsto</th>
+                  <th class="py-2.5">Doca Designada</th>
+                </tr>
+              </thead>
+              <tbody id="geofenceVehiclesTableBody" class="divide-y divide-slate-800/50">
+                <!-- Linhas dos veículos geradas via JS -->
+              </tbody>
+            </table>
           </div>
         </div>
 
