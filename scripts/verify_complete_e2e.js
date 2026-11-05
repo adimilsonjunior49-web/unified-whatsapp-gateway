@@ -126,6 +126,15 @@ async function runFullE2ETest() {
   const desktopShortcut = 'C:\\Users\\Home\\Desktop\\WhatsApp.lnk';
   check('Atalho Executivo Exclusivo na Área de Trabalho', fs.existsSync(desktopShortcut), `(${desktopShortcut})`);
 
+  // 14. Backup Atômico do SQLite
+  const bk = await post('/backup/create', {});
+  const bList = await get('/backup/list');
+  check('Backup Atômico & Compactação do SQLite', bk.data?.success === true && bList.data?.backups?.length > 0, `(${bk.data?.backup?.filename} • ${bk.data?.backup?.sizeFormatted})`);
+
+  // 15. Watchdog & Inicialização Silenciosa com o Windows
+  const startupVbs = 'C:\\Users\\Home\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\StartAtlasLoggiGateway.vbs';
+  check('Watchdog & Inicialização Automática com o Windows', fs.existsSync(startupVbs), `(${startupVbs})`);
+
   console.log('\n================================================================');
   console.log(`📊 RESULTADO FINAL: ${passed}/${total} ETAPAS APROVADAS (${Math.round((passed/total)*100)}%)`);
   console.log('================================================================\n');

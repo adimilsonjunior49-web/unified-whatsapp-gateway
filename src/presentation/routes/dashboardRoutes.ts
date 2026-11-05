@@ -83,6 +83,9 @@ function renderExecutiveLoggiDashboardHTML(): string {
   <!-- Leaflet CSS & JS para Rastreamento em Tempo Real da Frota -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- HTML5 QR Code & Barcode Scanner Library via Webcam -->
+  <script src="https://unpkg.com/html5-qrcode"></script>
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -185,6 +188,12 @@ function renderExecutiveLoggiDashboardHTML(): string {
         <button onclick="switchMainView('telephony')" id="railBtnTelephony" class="rail-btn p-3 rounded-2xl text-slate-400 hover:text-white hover:bg-obsidian-850 transition flex flex-col items-center group relative" title="Telefonia & Discador WebRTC">
           <i data-lucide="phone-call" class="w-5 h-5 text-cyan-400"></i>
           <span class="text-[9px] font-bold mt-1">Telefone</span>
+        </button>
+
+        <!-- Barcode & QR Scanner via Webcam -->
+        <button onclick="openScannerModal()" class="p-3 rounded-2xl text-slate-400 hover:text-emerald-400 hover:bg-obsidian-850 transition flex flex-col items-center group relative" title="Escanear Código de Barras / Danfe com Webcam">
+          <i data-lucide="scan-barcode" class="w-5 h-5"></i>
+          <span class="text-[9px] font-bold mt-1">Scanner</span>
         </button>
 
         <!-- Video Conference & Meeting -->
@@ -964,6 +973,9 @@ function renderExecutiveLoggiDashboardHTML(): string {
 
         <!-- Quick Tower Actions -->
         <div class="flex flex-wrap items-center gap-2">
+          <button onclick="triggerManualBackup()" id="btnBackup" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs rounded-xl flex items-center gap-1.5 transition" title="Gerar Backup Atômico do SQLite">
+            <i data-lucide="database" class="w-4 h-4 text-sky-400"></i> Backup DB
+          </button>
           <button onclick="window.open('/tower/report-html', '_blank')" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs rounded-xl flex items-center gap-1.5 transition" title="Exportar Relatório Consolidado para PDF / Impressão">
             <i data-lucide="printer" class="w-4 h-4 text-emerald-400"></i> Relatório PDF
           </button>
@@ -1747,6 +1759,47 @@ function renderExecutiveLoggiDashboardHTML(): string {
 
         <div id="dispatcherAnswerBox" class="hidden bg-obsidian-950 border border-indigo-500/30 rounded-xl p-4 text-slate-200 whitespace-pre-wrap leading-relaxed">
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 7: SCANNER DE CÓDIGO DE BARRAS & DANFE VIA WEBCAM                   -->
+  <!-- ========================================================================= -->
+  <div id="scannerModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="glass-card bg-obsidian-900 border border-emerald-500/30 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center space-x-2">
+          <div class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+            <i data-lucide="scan-barcode" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="font-extrabold text-white text-base">Scanner de Encomendas & Danfe</h3>
+            <p class="text-[11px] text-emerald-400">Leitor ótico 1D / 2D via Webcam do computador</p>
+          </div>
+        </div>
+        <button onclick="closeScannerModal()" class="text-slate-400 hover:text-white transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <!-- Visualizador da Câmera -->
+        <div id="qr-reader" class="w-full rounded-2xl overflow-hidden border border-slate-800 bg-black min-h-[220px]"></div>
+
+        <!-- Resultado do Código Lido -->
+        <div id="scannerResultBox" class="p-3 bg-obsidian-950 border border-emerald-500/40 rounded-xl space-y-1">
+          <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Último Código Identificado:</span>
+          <span id="scannedCodeText" class="font-mono text-emerald-400 font-bold text-sm block">Aguardando aproximação da etiqueta...</span>
+        </div>
+
+        <p class="text-[11px] text-slate-400">
+          Aponte o código de barras da nota fiscal ou etiqueta de envio para a câmera. Ao detectar, o bipe sonoro confirmará a leitura.
+        </p>
+      </div>
+
+      <div class="flex items-center justify-end space-x-2 pt-2 border-t border-slate-800">
+        <button onclick="closeScannerModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-semibold transition text-xs">Fechar Scanner</button>
       </div>
     </div>
   </div>
@@ -2792,6 +2845,70 @@ function renderExecutiveLoggiDashboardHTML(): string {
       }
     }
 
+    // 19. BACKUP ATÔMICO DO SQLITE
+    async function triggerManualBackup() {
+      const btn = document.getElementById('btnBackup');
+      btn.disabled = true;
+      btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Gravando...';
+      try {
+        const res = await fetch('/backup/create', { method: 'POST' });
+        const json = await res.json();
+        if (json.success && json.backup) {
+          alert('💾 Backup do Banco de Dados Concluído!\nArquivo: ' + json.backup.filename + ' (' + json.backup.sizeFormatted + ')\nSalvo com segurança em: storage/backups/');
+        } else {
+          alert('Erro ao gerar backup.');
+        }
+      } catch (e) {
+        alert('Erro ao comunicar com o servidor de backup.');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="database" class="w-4 h-4 text-sky-400"></i> Backup DB';
+        lucide.createIcons();
+      }
+    }
+
+    // 20. NOTIFICAÇÕES DESKTOP WINDOWS (NATIVAS)
+    function requestDesktopNotifications() {
+      if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+        Notification.requestPermission();
+      }
+    }
+    function sendWindowsDesktopNotification(title, body) {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        try {
+          new Notification(title, {
+            body,
+            icon: '/icon.svg',
+            badge: '/icon.svg'
+          });
+        } catch (_) {}
+      }
+    }
+
+    // 21. SCANNER DE CÓDIGO DE BARRAS VIA WEBCAM
+    let html5QrcodeScanner = null;
+
+    function openScannerModal() {
+      document.getElementById('scannerModal').classList.remove('hidden');
+      setTimeout(() => {
+        if (!html5QrcodeScanner) {
+          html5QrcodeScanner = new Html5QrcodeScanner('qr-reader', {
+            fps: 10,
+            qrbox: { width: 250, height: 160 }
+          });
+          html5QrcodeScanner.render((decodedText) => {
+            playDtmfTone('1');
+            document.getElementById('scannedCodeText').innerText = decodedText;
+            sendWindowsDesktopNotification('📦 Pacote Identificado', 'Código lido via câmera: ' + decodedText);
+          }, () => {});
+        }
+      }, 200);
+    }
+
+    function closeScannerModal() {
+      document.getElementById('scannerModal').classList.add('hidden');
+    }
+
     // Auto-refresh contínuo a cada 3.5 segundos
     setInterval(() => {
       if (activeChatJid) loadChatMessages(activeChatJid);
@@ -2803,6 +2920,7 @@ function renderExecutiveLoggiDashboardHTML(): string {
     loadChats();
     loadContactsList();
     loadStats();
+    requestDesktopNotifications();
     lucide.createIcons();
   </script>
 </body>

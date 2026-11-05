@@ -5,6 +5,7 @@ import { messageService } from '../../application/messageService';
 import { TelegramBridge } from '../../infrastructure/telegram/telegramBridge';
 import { ocrEngine } from '../../infrastructure/ocr/ocrEngine';
 import { loggiDispatcherAgent } from '../../infrastructure/agent/loggiDispatcherAgent';
+import { backupService } from '../../infrastructure/storage/backupService';
 import { DatabaseSync } from 'node:sqlite';
 import fs from 'fs';
 import path from 'path';
@@ -635,5 +636,35 @@ export async function towerRoutes(app: FastifyInstance) {
     `;
 
     reply.type('text/html').send(html);
+  });
+
+  /**
+   * GET /backup/list
+   * Retorna os backups gerados do banco de dados
+   */
+  app.get('/backup/list', async (_request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const list = backupService.listBackups();
+      return reply.send({ success: true, backups: list });
+    } catch (err: any) {
+      return reply.status(500).send({ success: false, error: err.message });
+    }
+  });
+
+  /**
+   * POST /backup/create
+   * Executa um backup atômico imediato do banco SQLite
+   */
+  app.post('/backup/create', async (_request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const record = await backupService.createBackup();
+      return reply.send({
+        success: true,
+        message: 'Backup executado e compactado com sucesso!',
+        backup: record
+      });
+    } catch (err: any) {
+      return reply.status(500).send({ success: false, error: err.message });
+    }
   });
 }

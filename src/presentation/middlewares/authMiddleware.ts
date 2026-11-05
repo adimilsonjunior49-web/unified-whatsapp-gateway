@@ -23,6 +23,7 @@ export async function authMiddleware(request: FastifyRequest, reply: FastifyRepl
     url.startsWith('/telephony') ||
     url.startsWith('/agent') ||
     url.startsWith('/receipts') ||
+    url.startsWith('/backup') ||
     url === '/icon.svg' ||
     url === '/favicon.ico'
   ) {
