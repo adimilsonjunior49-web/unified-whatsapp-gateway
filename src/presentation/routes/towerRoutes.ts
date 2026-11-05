@@ -1088,4 +1088,17 @@ export async function towerRoutes(app: FastifyInstance) {
       return reply.status(500).send({ success: false, error: err.message });
     }
   });
+
+  /**
+   * GET /tower/activity-heatmap
+   * Retorna a matriz 7 dias x 24 horas estilo GitHub Activity Heatmap
+   */
+  app.get('/tower/activity-heatmap', async (_request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const data = highCapacityStore.getActivityHeatmap();
+      return reply.send({ success: true, ...data });
+    } catch (err: any) {
+      return reply.status(500).send({ success: false, error: err.message });
+    }
+  });
 }

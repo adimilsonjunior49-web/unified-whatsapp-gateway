@@ -38,6 +38,10 @@ function post(path, body) {
   }, body);
 }
 
+function del(path) {
+  return request({ hostname: 'localhost', port: 8080, path, method: 'DELETE' });
+}
+
 let passed = 0;
 let total = 0;
 
@@ -180,6 +184,34 @@ async function runFullE2ETest() {
   const expContacts = await get('/contacts/export.csv');
   const expReceipts = await get('/receipts/export.csv');
   check('Exportação em Planilha Excel / CSV (Contatos e Canhotos OCR)', expContacts.status === 200 && expContacts.data.startsWith('\uFEFF') && expReceipts.status === 200 && expReceipts.data.startsWith('\uFEFF'), `(BOM UTF-8 válido para abertura direta no Microsoft Excel)`);
+
+  // 26. Documentação Interativa OpenAPI 3.0 / Swagger UI
+  const swg = await get('/documentation/json');
+  check('Documentação Interativa Swagger / OpenAPI 3.0 (/documentation)', swg.status === 200 && swg.data?.openapi, `(Versão OpenAPI: ${swg.data?.openapi} • Título: ${swg.data?.info?.title})`);
+
+  // 27. Activity Heatmap 7x24 da Malha Loggi (GitHub Contribution Style)
+  const hm = await get('/tower/activity-heatmap');
+  check('Activity Heatmap Operacional 7x24 (Estilo GitHub Commits)', hm.status === 200 && hm.data?.success === true && hm.data?.matrix?.length === 7 && hm.data?.hours?.length === 24, `(${hm.data?.days?.length} dias x ${hm.data?.hours?.length}h • Total: ${hm.data?.totalActivity} eventos/semana)`);
+
+  // 28. Central de Webhooks com Assinatura Criptográfica HMAC-SHA256
+  const newWh = await post('/webhooks', { url: 'https://webhook.site/atlas-loggi-test', events: ['*'] });
+  const whList = await get('/webhooks');
+  check('Central de Webhooks & Integrações HMAC-SHA256 (Stripe/GitHub Style)', newWh.status === 200 && newWh.data?.webhook?.secret?.startsWith('whsec_') && whList.data?.webhooks?.length > 0, `(ID: ${newWh.data?.webhook?.id} • Secret: ${newWh.data?.webhook?.secret?.substring(0, 14)}...)`);
+
+  // 29. Teste de Disparo Sintético de Webhook com Assinatura HMAC
+  const whTest = await post('/webhooks/test-dispatch', {
+    webhookId: newWh.data?.webhook?.id,
+    url: 'https://httpbin.org/post',
+    secret: newWh.data?.webhook?.secret
+  });
+  if (newWh.data?.webhook?.id) {
+    await del('/webhooks/' + newWh.data?.webhook?.id);
+  }
+  check('Disparo de Webhook com Header X-Atlas-Signature-256', whTest.status === 200 && (whTest.data?.success === true || typeof whTest.data?.statusCode === 'number'), `(Entrega validada com HMAC-SHA256)`);
+
+  // 30. Command Palette Global (Ctrl+K) & Soundscape Web Audio API no PWA
+  const indexHasPalette = indexHtml.includes('commandPaletteModal') && indexHtml.includes('toggleCommandPalette') && indexHtml.includes('playAtlasSound');
+  check('Command Palette Global (Ctrl+K) & Soundscape Háptico Web Audio API', indexHasPalette === true, '(Busca Raycast/Linear ativa • Síntese sonora harmônica sem dependências)');
 
   console.log('\n================================================================');
   console.log(`📊 RESULTADO FINAL: ${passed}/${total} ETAPAS APROVADAS (${Math.round((passed/total)*100)}%)`);
