@@ -351,7 +351,7 @@ const htmlContent = `<!DOCTYPE html>
 
       <!-- Badge Meteorológico em Tempo Real & Alerta de Pista -->
       <div class="flex items-center space-x-2 sm:space-x-3">
-        <div id="weatherBadge" class="flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold border border-sky-500/30 bg-sky-500/10 text-sky-300 transition-all cursor-pointer hover:bg-sky-500/20" onclick="fetchLiveWeather(true)" title="Clique para atualizar previsão meteorológica agora">
+        <div id="weatherBadge" class="flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold border border-sky-500/30 bg-sky-500/10 text-sky-300 transition-all cursor-pointer hover:bg-sky-500/20" onclick="openLocationModal()" title="Clique para alterar ou detectar sua localização atual (GPS / Cidades)">
           <span id="weatherIconDisplay">⛅</span>
           <span id="weatherTempDisplay" class="font-bold">26°C</span>
           <span id="weatherConditionDisplay" class="hidden sm:inline">Cajamar / SP</span>
@@ -1479,6 +1479,87 @@ const htmlContent = `<!DOCTYPE html>
     </div>
   </div>
 
+  <!-- =================================================================== -->
+  <!-- MODAL: LOCALIZAÇÃO ATUAL & SELEÇÃO DE CIDADES / POLOS LOGGI        -->
+  <!-- =================================================================== -->
+  <div id="locationModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-md flex items-center justify-center p-4" onclick="handleLocationModalBackdrop(event)">
+    <div class="glass-card bg-obsidian-900 border border-sky-500/40 rounded-2xl w-full max-w-lg p-6 space-y-4 shadow-2xl" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center space-x-2">
+          <div class="w-8 h-8 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center font-bold">
+            <i data-lucide="map-pin" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="font-extrabold text-white text-base">Localização Atual & Clima</h3>
+            <p class="text-[11px] text-sky-400">Selecione sua base operacional ou use o GPS real</p>
+          </div>
+        </div>
+        <button onclick="closeLocationModal()" class="text-slate-400 hover:text-white transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Botão GPS em Tempo Real -->
+      <button onclick="detectDeviceGeolocation()" id="btnDetectGps" class="w-full py-3 px-4 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition shadow-lg shadow-sky-600/20">
+        <i data-lucide="crosshair" class="w-4 h-4 animate-spin-slow"></i>
+        <span>Detectar Minha Localização Exata via GPS / Navegador</span>
+      </button>
+
+      <!-- Busca de Qualquer Cidade Brasileira -->
+      <div class="space-y-1.5 pt-1">
+        <label class="text-[11px] font-semibold text-slate-400 block">Buscar Outra Cidade ou Estado</label>
+        <div class="relative">
+          <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
+          <input type="text" id="citySearchInput" oninput="searchCitiesDebounced()" placeholder="Digite o nome da cidade (ex: Barueri, São Paulo, Campinas)..." class="w-full bg-obsidian-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition">
+        </div>
+        <div id="citySearchResults" class="space-y-1 max-h-36 overflow-y-auto text-xs hidden pt-1"></div>
+      </div>
+
+      <!-- Bases e Polos Rápidos da Loggi -->
+      <div class="space-y-2 pt-2 border-t border-slate-800">
+        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Bases Operacionais Frequentes</label>
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <button onclick="selectPredefinedLocation('Barueri / SP', -23.5111, -46.8727)" class="p-2.5 rounded-xl bg-obsidian-950 hover:bg-obsidian-850 border border-slate-800 text-left transition flex items-center gap-2 group">
+            <span class="w-2 h-2 rounded-full bg-sky-400"></span>
+            <div>
+              <div class="font-bold text-white group-hover:text-sky-300">Barueri / SP</div>
+              <div class="text-[10px] text-slate-500">Sede Operacional</div>
+            </div>
+          </button>
+
+          <button onclick="selectPredefinedLocation('Cajamar / SP', -23.3556, -46.8778)" class="p-2.5 rounded-xl bg-obsidian-950 hover:bg-obsidian-850 border border-slate-800 text-left transition flex items-center gap-2 group">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <div>
+              <div class="font-bold text-white group-hover:text-emerald-300">CD Cajamar</div>
+              <div class="text-[10px] text-slate-500">Cross-Docking Central</div>
+            </div>
+          </button>
+
+          <button onclick="selectPredefinedLocation('Leopoldina / SP', -23.5329, -46.7264)" class="p-2.5 rounded-xl bg-obsidian-950 hover:bg-obsidian-850 border border-slate-800 text-left transition flex items-center gap-2 group">
+            <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+            <div>
+              <div class="font-bold text-white group-hover:text-amber-300">Leopoldina / SP</div>
+              <div class="text-[10px] text-slate-500">Polo Regional</div>
+            </div>
+          </button>
+
+          <button onclick="selectPredefinedLocation('Campinas / SP', -22.9056, -47.0608)" class="p-2.5 rounded-xl bg-obsidian-950 hover:bg-obsidian-850 border border-slate-800 text-left transition flex items-center gap-2 group">
+            <span class="w-2 h-2 rounded-full bg-purple-400"></span>
+            <div>
+              <div class="font-bold text-white group-hover:text-purple-300">Campinas / SP</div>
+              <div class="text-[10px] text-slate-500">Hub Interior</div>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between pt-2 border-t border-slate-800 text-[11px] text-slate-400">
+        <span id="currentActiveLocationLabel">Local ativo: Carregando...</span>
+        <button onclick="closeLocationModal()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl font-semibold transition">Fechar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- JAVASCRIPT MASTER -->
   <script>
     const SESSION_ID = 'whatsapp_principal';
@@ -1573,13 +1654,24 @@ const htmlContent = `<!DOCTYPE html>
     }
 
     // 3. PREVISÃO DO TEMPO & TEMAS
+    let activeUserCoords = null;
+    try {
+      const savedLoc = localStorage.getItem('atlas_custom_location');
+      if (savedLoc) activeUserCoords = JSON.parse(savedLoc);
+    } catch (_) {}
+
     async function fetchLiveWeather(isUserClick = false) {
       try {
-        const res = await fetch('/api/weather');
+        let weatherUrl = '/api/weather';
+        if (activeUserCoords && activeUserCoords.lat && activeUserCoords.lon) {
+          weatherUrl += '?lat=' + encodeURIComponent(activeUserCoords.lat) + '&lon=' + encodeURIComponent(activeUserCoords.lon) + '&city=' + encodeURIComponent(activeUserCoords.city || '');
+        }
+
+        const res = await fetch(weatherUrl);
         const data = await res.json();
         if (data.success) {
           document.getElementById('weatherTempDisplay').innerText = data.temperature + '°C';
-          document.getElementById('weatherConditionDisplay').innerText = data.conditionLabel + ' • Cajamar';
+          document.getElementById('weatherConditionDisplay').innerText = data.conditionLabel + ' • ' + (data.city || 'Localização Atual');
 
           let icon = '⛅';
           if (data.condition === 'clear') icon = data.isDay ? '☀️' : '🌙';

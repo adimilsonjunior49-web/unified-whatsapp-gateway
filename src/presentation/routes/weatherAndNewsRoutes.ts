@@ -113,27 +113,52 @@ Além dos ganhos ambientais e cumprimento de metas ESG, os veículos elétricos 
 export async function weatherAndNewsRoutes(app: FastifyInstance) {
   /**
    * GET /api/weather
-   * Fornece previsão meteorológica dinâmica para Cajamar / São Paulo e determina o tema da interface
+   * Fornece previsão meteorológica dinâmica para a localização atual do usuário (detectada por GPS/IP)
+   * Aceita parâmetros opcionais de query: ?lat=-23.5111&lon=-46.8727&city=Barueri
    */
-  app.get('/api/weather', async (_request: FastifyRequest, reply: FastifyReply) => {
-    const nowMs = Date.now();
-    if (weatherCache && (nowMs - weatherCache.timestamp) < CACHE_TTL_MS) {
-      return reply.send({ success: true, cached: true, ...weatherCache.data });
+  app.get('/api/weather', async (request: FastifyRequest, reply: FastifyReply) => {
+    const query = request.query as { lat?: string; lon?: string; city?: string };
+    
+    let lat = query.lat ? parseFloat(query.lat) : NaN;
+    let lon = query.lon ? parseFloat(query.lon) : NaN;
+    let cityName = query.city ? decodeURIComponent(query.city) : '';
+
+    // Se latitude/longitude não foram enviadas pelo cliente, detecta dinamicamente via IP
+    if (isNaN(lat) || isNaN(lon)) {
+      try {
+        const ipRes = await axios.get('http://ip-api.com/json', { timeout: 2500 });
+        if (ipRes.data && ipRes.data.status === 'success') {
+          lat = ipRes.data.lat;
+          lon = ipRes.data.lon;
+          cityName = `${ipRes.data.city} / ${ipRes.data.region || 'SP'}`;
+        }
+      } catch (_) {}
     }
 
+    // Fallback caso detecção de IP não responda
+    if (isNaN(lat) || isNaN(lon)) {
+      lat = -23.5111;
+      lon = -46.8727;
+      if (!cityName) cityName = 'Barueri / SP';
+    }
+
+    if (!cityName) {
+      cityName = `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+    }
+
+    const nowMs = Date.now();
+    const cacheKey = `${lat.toFixed(3)}_${lon.toFixed(3)}`;
+
     try {
-      // Coordenadas centrais da malha Loggi (Cajamar/SP)
-      const lat = -23.3556;
-      const lon = -46.8778;
       const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,rain,weather_code,wind_speed_10m&timezone=America%2FSao_Paulo`;
 
       const response = await axios.get(url, { timeout: 4000 });
       const current = response.data?.current;
 
-      const temp = current?.temperature_2m ?? 21;
+      const temp = current?.temperature_2m ?? 23;
       const apparentTemp = current?.apparent_temperature ?? temp;
-      const humidity = current?.relative_humidity_2m ?? 75;
-      const isDay = current?.is_day ?? 0;
+      const humidity = current?.relative_humidity_2m ?? 70;
+      const isDay = current?.is_day ?? 1;
       const weatherCode = current?.weather_code ?? 0;
       const rain = current?.rain ?? 0;
       const windSpeed = current?.wind_speed_10m ?? 8;
@@ -190,7 +215,7 @@ export async function weatherAndNewsRoutes(app: FastifyInstance) {
       }
 
       const weatherData = {
-        city: 'Cajamar / São Paulo (CD Central Loggi)',
+        city: cityName,
         coordinates: { lat, lon },
         temperature: Math.round(temp),
         apparentTemperature: Math.round(apparentTemp),
@@ -206,7 +231,6 @@ export async function weatherAndNewsRoutes(app: FastifyInstance) {
         timestamp: Date.now()
       };
 
-      weatherCache = { data: weatherData, timestamp: nowMs };
       return reply.send({ success: true, ...weatherData });
     } catch (e: any) {
       // Fallback robusto offline baseado no horário do servidor
@@ -226,23 +250,51 @@ export async function weatherAndNewsRoutes(app: FastifyInstance) {
       }
 
       const fallbackData = {
-        city: 'Cajamar / São Paulo (CD Central Loggi)',
-        temperature: isNight ? 20 : 26,
-        apparentTemperature: isNight ? 20 : 27,
-        humidity: 78,
-        windSpeed: 10,
+        city: cityName || 'Barueri / SP',
+        coordinates: { lat, lon },
+        temperature: isNight ? 20 : 25,
+        apparentTemperature: isNight ? 20 : 25,
+        humidity: 70,
+        windSpeed: 8,
         isDay: !isNight,
-        timeOfDay: isNight ? 'night' : (isSunset ? 'sunset' : 'day'),
+        timeOfDay: isNight ? 'night' : isSunset ? 'sunset' : 'day',
         weatherCode: 0,
         condition: 'clear',
         conditionLabel,
         wetRoadWarning: false,
         recommendedTheme: fallbackTheme,
-        isFallback: true,
         timestamp: Date.now()
       };
 
-      return reply.send({ success: true, ...fallbackData });
+      return reply.send({ success: true, fallback: true, ...fallbackData });
+    }
+  });
+
+  /**
+   * GET /api/weather/search-city
+   * Busca cidades para geocodificação instantânea (Open-Meteo Geocoding)
+   */
+  app.get('/api/weather/search-city', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { q } = request.query as { q?: string };
+    if (!q || q.trim().length < 2) {
+      return reply.send({ success: true, results: [] });
+    }
+
+    try {
+      const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q.trim())}&count=6&language=pt&format=json`;
+      const res = await axios.get(url, { timeout: 3500 });
+      const results = (res.data?.results || []).map((r: any) => ({
+        id: r.id,
+        name: r.name,
+        admin1: r.admin1 || '',
+        country: r.country || 'Brasil',
+        latitude: r.latitude,
+        longitude: r.longitude,
+        displayName: `${r.name} - ${r.admin1 || r.country}`
+      }));
+      return reply.send({ success: true, results });
+    } catch (err: any) {
+      return reply.status(500).send({ success: false, error: err.message });
     }
   });
 
