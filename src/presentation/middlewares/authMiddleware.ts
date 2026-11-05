@@ -14,6 +14,8 @@ export async function authMiddleware(request: FastifyRequest, reply: FastifyRepl
     url.startsWith('/events/recent') ||
     url.startsWith('/chats') ||
     url.startsWith('/contacts') ||
+    url.startsWith('/groups') ||
+    url.startsWith('/messages') ||
     url.startsWith('/sync') ||
     url.startsWith('/stats') ||
     url.startsWith('/agents') ||

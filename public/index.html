@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR" class="dark theme-night-clear">
+<html lang="pt-BR" class="dark theme-day-sunny">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -306,9 +306,9 @@
       <div class="flex items-center space-x-2 sm:space-x-3">
         <div id="weatherBadge" class="flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold border border-sky-500/30 bg-sky-500/10 text-sky-300 transition-all cursor-pointer hover:bg-sky-500/20" onclick="fetchLiveWeather(true)" title="Clique para atualizar previsão meteorológica agora">
           <span id="weatherIconDisplay">⛅</span>
-          <span id="weatherTempDisplay" class="font-bold">21°C</span>
+          <span id="weatherTempDisplay" class="font-bold">26°C</span>
           <span id="weatherConditionDisplay" class="hidden sm:inline">Cajamar / SP</span>
-          <span id="weatherWetRoadAlert" class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+          <span id="weatherWetRoadAlert" class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/30 hidden flex items-center gap-1">
             <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span> PISTA MOLHADA
           </span>
         </div>
@@ -379,7 +379,6 @@
         <!-- ÁREA CENTRAL DE CONVERSA / CHAT ATIVO -->
         <div id="activeChatArea" class="flex-1 flex flex-col bg-obsidian-950/70 h-full relative">
           
-          <!-- Nenhum Chat Selecionado (Placeholder) -->
           <div id="noChatSelectedPlaceholder" class="flex-1 flex flex-col items-center justify-center text-center p-8 space-y-4">
             <div class="w-16 h-16 rounded-3xl bg-obsidian-900 border border-slate-800 flex items-center justify-center text-slate-500 shadow-xl">
               <i data-lucide="message-square-dashed" class="w-8 h-8 text-loggi-400"></i>
@@ -393,7 +392,6 @@
           <!-- Janela do Chat Ativo -->
           <div id="chatActiveWindow" class="hidden flex-1 flex flex-col h-full overflow-hidden">
             
-            <!-- Chat Header -->
             <div class="p-4 border-b border-slate-800/80 bg-obsidian-900/40 flex items-center justify-between">
               <div class="flex items-center space-x-3">
                 <div id="activeChatAvatar" class="w-10 h-10 rounded-2xl bg-loggi-600/20 text-loggi-400 border border-loggi-500/30 flex items-center justify-center font-bold text-sm">
@@ -409,7 +407,6 @@
                 </div>
               </div>
 
-              <!-- Chat Header Actions -->
               <div class="flex items-center space-x-2">
                 <button onclick="toggleActiveChatAi()" id="btnToggleChatAi" class="px-2.5 py-1.5 rounded-xl text-xs font-bold border border-slate-800 bg-obsidian-900 text-slate-300 hover:text-white transition flex items-center gap-1.5">
                   <i data-lucide="bot" class="w-3.5 h-3.5 text-emerald-400"></i>
@@ -423,9 +420,7 @@
             </div>
 
             <!-- Messages Timeline Container -->
-            <div id="messagesTimeline" class="flex-1 overflow-y-auto p-4 space-y-3">
-              <!-- Mensagens renderizadas dinamicamente aqui -->
-            </div>
+            <div id="messagesTimeline" class="flex-1 overflow-y-auto p-4 space-y-3"></div>
 
             <!-- Smart Replies Sugestões -->
             <div id="smartRepliesBar" class="px-4 py-2 border-t border-slate-800/60 bg-obsidian-900/30 flex items-center space-x-2 overflow-x-auto text-xs hidden">
@@ -435,14 +430,21 @@
               <div id="smartRepliesChips" class="flex items-center space-x-2"></div>
             </div>
 
-            <!-- Chat Input Box -->
+            <!-- Chat Input Box com Botão de Áudio PTT -->
             <div class="p-3 border-t border-slate-800/80 bg-obsidian-900/60 flex items-center space-x-2">
-              <button onclick="toggleAudioRecording()" id="btnRecordAudio" class="p-2.5 rounded-xl bg-obsidian-850 hover:bg-obsidian-800 text-slate-400 hover:text-rose-400 border border-slate-800 transition" title="Gravar Nota de Voz PTT">
+              <button onclick="toggleAudioRecording()" id="btnRecordAudio" class="p-2.5 rounded-xl bg-obsidian-850 hover:bg-obsidian-800 text-slate-400 hover:text-rose-400 border border-slate-800 transition" title="Gravar Nota de Voz PTT no Microfone">
                 <i data-lucide="mic" class="w-4 h-4"></i>
               </button>
               
               <input type="text" id="chatMessageInput" onkeydown="if(event.key === 'Enter') sendActiveChatMessage()" placeholder="Digite uma mensagem ou resposta operacional..." class="flex-1 bg-obsidian-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-loggi-500 transition">
 
+              <!-- Botão 1: Enviar como Nota de Voz PTT -->
+              <button onclick="sendChatMessageAsVoicePtt()" class="px-3 py-2.5 bg-amber-500 hover:bg-amber-400 text-obsidian-950 rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-lg shadow-amber-500/20 whitespace-nowrap" title="Converter texto digitado em Áudio PTT e enviar para o motorista">
+                <i data-lucide="radio" class="w-3.5 h-3.5"></i>
+                <span class="hidden md:inline">Voz PTT</span>
+              </button>
+
+              <!-- Botão 2: Enviar como Texto -->
               <button onclick="sendActiveChatMessage()" class="px-4 py-2.5 bg-loggi-600 hover:bg-loggi-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-lg shadow-loggi-600/30">
                 <i data-lucide="send" class="w-3.5 h-3.5"></i>
                 <span class="hidden sm:inline">Enviar</span>
@@ -473,15 +475,20 @@
             </div>
           </div>
 
-          <!-- Add Contact & Search -->
-          <div class="flex items-center space-x-3 w-full sm:w-auto">
-            <div class="relative flex-1 sm:w-64">
+          <!-- Add Contact, Search & Excel Export -->
+          <div class="flex items-center space-x-2 w-full sm:w-auto">
+            <div class="relative flex-1 sm:w-60">
               <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
               <input type="text" id="contactSearchInput" oninput="loadContactsList()" placeholder="Buscar contato ou telefone..." class="w-full bg-obsidian-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition">
             </div>
 
+            <!-- Exportar Excel / CSV -->
+            <a href="/contacts/export.csv" target="_blank" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl flex items-center gap-1.5 transition border border-slate-700 whitespace-nowrap" title="Baixar Agenda em Planilha Excel UTF-8">
+              <i data-lucide="download" class="w-4 h-4 text-emerald-400"></i> Excel CSV
+            </a>
+
             <button onclick="openNewContactModal()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition shadow-lg shadow-emerald-600/20 whitespace-nowrap">
-              <i data-lucide="plus" class="w-4 h-4"></i> Salvar Novo Contato
+              <i data-lucide="plus" class="w-4 h-4"></i> Novo Contato
             </button>
           </div>
         </div>
@@ -518,7 +525,7 @@
                   <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span> 0 MENÇÕES DIRETAS
                 </span>
               </div>
-              <p class="text-xs text-slate-400">Stream contínuo de todos os 47 grupos Loggi com destaque prioritário para onde você for marcado.</p>
+              <p class="text-xs text-slate-400">Stream contínuo de todos os 56 grupos Loggi com destaque prioritário para onde você for marcado.</p>
             </div>
           </div>
 
@@ -564,12 +571,16 @@
                   <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> FAROL VERDE REGULAR
                 </span>
               </div>
-              <p class="text-xs text-slate-400">Monitoramento consolidado de 47 grupos Loggi, rotas interestaduais, SLA e inteligência de contingência.</p>
+              <p class="text-xs text-slate-400">Monitoramento consolidado de 56 grupos Loggi, rotas interestaduais, SLA e inteligência de contingência.</p>
             </div>
           </div>
 
-          <!-- Quick Tower Actions -->
+          <!-- Quick Tower Actions com Morning Briefing -->
           <div class="flex flex-wrap items-center gap-2">
+            <!-- NOVO: Morning Briefing do Diretor -->
+            <button onclick="openMorningBriefingModal()" class="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-obsidian-950 font-black text-xs rounded-xl flex items-center gap-1.5 transition shadow-lg shadow-amber-500/20">
+              <i data-lucide="coffee" class="w-4 h-4"></i> Morning Briefing
+            </button>
             <button onclick="triggerManualBackup()" id="btnBackup" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs rounded-xl flex items-center gap-1.5 transition" title="Gerar Backup Atômico do SQLite">
               <i data-lucide="database" class="w-4 h-4 text-sky-400"></i> Backup DB
             </button>
@@ -577,7 +588,26 @@
               <i data-lucide="printer" class="w-4 h-4 text-emerald-400"></i> Relatório PDF
             </button>
             <button onclick="openRedAlertModal()" class="px-3 py-2 bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs rounded-xl flex items-center gap-1.5 transition shadow-lg shadow-rose-600/30">
-              <i data-lucide="alert-triangle" class="w-4 h-4"></i> Alerta Vermelho Plantão
+              <i data-lucide="alert-triangle" class="w-4 h-4"></i> Alerta Vermelho
+            </button>
+          </div>
+        </div>
+
+        <!-- NOVO: RASTREAMENTO INSTANTÂNEO DE ENCOMENDAS & CHAVE DANFE -->
+        <div class="glass-card rounded-2xl p-4 border border-slate-800 bg-obsidian-900/60 flex flex-col md:flex-row items-center justify-between gap-3 shadow-xl">
+          <div class="flex items-center space-x-3 w-full md:w-auto">
+            <div class="w-10 h-10 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center flex-shrink-0">
+              <i data-lucide="package-search" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <span class="font-extrabold text-white text-xs block">Rastreamento de Encomendas & Chave Danfe (44 dígitos)</span>
+              <span class="text-[11px] text-slate-400">Consulte o status do pacote, carreta vinculada e foto do canhoto OCR no ato.</span>
+            </div>
+          </div>
+          <div class="flex items-center space-x-2 w-full md:w-auto">
+            <input type="text" id="trackingDanfeInput" onkeydown="if(event.key === 'Enter') trackPackageOrDanfe()" placeholder="Ex: NF-849204 ou chave de 44 dígitos..." class="flex-1 md:w-80 bg-obsidian-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white font-mono placeholder-slate-500 focus:outline-none focus:border-sky-500">
+            <button onclick="trackPackageOrDanfe()" class="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 transition whitespace-nowrap shadow-lg shadow-sky-600/30">
+              <i data-lucide="search" class="w-3.5 h-3.5"></i> Rastrear
             </button>
           </div>
         </div>
@@ -655,7 +685,7 @@
           <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-3">
             <h3 class="text-sm font-extrabold text-white flex items-center gap-2">
               <i data-lucide="megaphone" class="w-4 h-4 text-sky-400"></i>
-              Comunicado Geral para os 47 Grupos
+              Comunicado Geral para os 56 Grupos
             </h3>
             <p class="text-xs text-slate-400">Dispare um aviso operacional instantâneo para todos os grupos Loggi simultaneamente.</p>
             <textarea id="broadcastTextInput" rows="4" placeholder="Ex: Atenção motoristas: neblina na Serra das Araras. Reduzam velocidade." class="w-full bg-obsidian-950 border border-slate-800 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition"></textarea>
@@ -717,9 +747,15 @@
             </div>
           </div>
 
-          <button onclick="loadReceiptsList()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-xl flex items-center gap-1.5 transition">
-            <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-emerald-400"></i> Atualizar Lista
-          </button>
+          <div class="flex items-center space-x-2">
+            <!-- Exportar Relatório Fiscal CSV -->
+            <a href="/receipts/export.csv" target="_blank" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-xl flex items-center gap-1.5 transition border border-slate-700 font-semibold" title="Baixar Relatório Fiscal em CSV">
+              <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5 text-emerald-400"></i> Exportar CSV
+            </a>
+            <button onclick="loadReceiptsList()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-xl flex items-center gap-1.5 transition">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-emerald-400"></i> Atualizar Lista
+            </button>
+          </div>
         </div>
 
         <div class="glass-card rounded-2xl p-5 border border-dashed border-emerald-500/30 flex flex-col items-center justify-center space-y-3 bg-obsidian-900/40">
@@ -870,7 +906,6 @@
       <!-- =================================================================== -->
       <div id="viewSectionNews" class="hidden flex-1 flex flex-col bg-obsidian-950 p-6 overflow-y-auto space-y-6">
         
-        <!-- Header News -->
         <div class="border-b border-slate-800 pb-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div class="flex items-center space-x-3">
             <div class="w-12 h-12 rounded-2xl bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold shadow-lg shadow-purple-500/10">
@@ -887,7 +922,6 @@
             </div>
           </div>
 
-          <!-- Busca nas Notícias -->
           <div class="flex items-center space-x-3 w-full md:w-auto">
             <div class="relative flex-1 md:w-64">
               <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
@@ -899,7 +933,6 @@
           </div>
         </div>
 
-        <!-- Filtros de Categoria News -->
         <div class="flex items-center space-x-2 text-xs font-semibold overflow-x-auto pb-1">
           <button onclick="setNewsCategory('ALL')" id="newsFilter-ALL" class="news-pill px-3 py-1.5 rounded-xl bg-purple-600 text-white transition">Todas as Notícias</button>
           <button onclick="setNewsCategory('LOGGI')" id="newsFilter-LOGGI" class="news-pill px-3 py-1.5 rounded-xl bg-obsidian-900 text-slate-400 hover:text-white border border-slate-800 transition">🚚 Logística & Loggi</button>
@@ -908,7 +941,6 @@
           <button onclick="setNewsCategory('TECH')" id="newsFilter-TECH" class="news-pill px-3 py-1.5 rounded-xl bg-obsidian-900 text-slate-400 hover:text-white border border-slate-800 transition">💡 Inovação & Tech</button>
         </div>
 
-        <!-- Grid de Notícias Estruturadas -->
         <div id="newsCardsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           <div class="col-span-full text-center py-12 text-slate-500 text-xs">Carregando feed de inteligência de mercado...</div>
         </div>
@@ -919,8 +951,91 @@
   </div>
 
   <!-- ========================================================================= -->
-  <!-- MODAL 1: SALVAR NOVO CONTATO NA AGENDA DO SQLITE                          -->
+  <!-- MODAL: MORNING BRIEFING DO DIRETOR (NOVO)                                 -->
   <!-- ========================================================================= -->
+  <div id="morningBriefingModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="glass-card bg-obsidian-900 border border-amber-500/40 rounded-2xl w-full max-w-2xl p-6 space-y-4 shadow-2xl max-h-[85vh] flex flex-col">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center space-x-3">
+          <div class="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold">
+            <i data-lucide="coffee" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="font-extrabold text-white text-base">Morning Briefing • Diretoria Loggi</h3>
+            <span id="briefingDateDisplay" class="text-xs text-amber-400 font-medium">Data ao Vivo</span>
+          </div>
+        </div>
+        <button onclick="closeMorningBriefingModal()" class="text-slate-400 hover:text-white transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="flex-1 overflow-y-auto space-y-4 pr-1 text-xs">
+        <div class="p-4 bg-obsidian-950/80 rounded-2xl border border-amber-500/20 space-y-2">
+          <span class="text-[10px] text-amber-400 font-bold uppercase tracking-wider block">Síntese Executiva Matinal:</span>
+          <p id="briefingSummaryText" class="text-slate-200 text-sm leading-relaxed">Carregando resumo...</p>
+        </div>
+
+        <div>
+          <span class="text-xs font-bold text-white block mb-2">Destaques Operacionais do Plantão:</span>
+          <div id="briefingHighlightsList" class="space-y-2"></div>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between pt-3 border-t border-slate-800">
+        <button onclick="sendBriefingToTelegram()" id="btnSendBriefingTelegram" class="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl font-bold transition text-xs flex items-center gap-1.5 shadow-lg shadow-sky-600/30">
+          <i data-lucide="send" class="w-4 h-4"></i> Disparar para meu Telegram (@AtlasJuniorBot)
+        </button>
+        <button onclick="closeMorningBriefingModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-semibold transition text-xs">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL: RASTREAMENTO DE ENCOMENDA & CHAVE DANFE (NOVO)                     -->
+  <!-- ========================================================================= -->
+  <div id="trackingResultModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="glass-card bg-obsidian-900 border border-sky-500/40 rounded-2xl w-full max-w-xl p-6 space-y-4 shadow-2xl max-h-[85vh] flex flex-col">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center space-x-2">
+          <div class="w-8 h-8 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center">
+            <i data-lucide="package" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="font-extrabold text-white text-base">Rastreamento de Encomenda</h3>
+            <span id="trackingCodeDisplay" class="font-mono text-xs text-sky-400 font-bold block">--</span>
+          </div>
+        </div>
+        <button onclick="closeTrackingModal()" class="text-slate-400 hover:text-white transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="flex-1 overflow-y-auto space-y-4 pr-1 text-xs">
+        <div class="p-3 bg-obsidian-950 rounded-xl border border-slate-800 flex items-center justify-between">
+          <div>
+            <span class="text-[10px] text-slate-400 font-bold block">STATUS ATUAL:</span>
+            <span id="trackingStatusLabel" class="text-sm font-extrabold text-emerald-400">EM ROTA</span>
+          </div>
+          <div>
+            <span class="text-[10px] text-slate-400 font-bold block">MOTORISTA / CARRETA:</span>
+            <span id="trackingDriverLabel" class="text-xs text-white font-semibold">Carlos Mendes</span>
+          </div>
+        </div>
+
+        <div>
+          <span class="text-xs font-bold text-white block mb-2">Linha do Tempo da Carga:</span>
+          <div id="trackingTimelineContainer" class="space-y-3 relative pl-4 border-l-2 border-slate-800"></div>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end pt-3 border-t border-slate-800">
+        <button onclick="closeTrackingModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-semibold transition text-xs">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAIS EXISTENTES (NOVO CONTATO, ALERTA VERMELHO, SCANNER, NEWS, MEETING) -->
   <div id="newContactModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
     <div class="glass-card bg-obsidian-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl">
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
@@ -966,9 +1081,6 @@
     </div>
   </div>
 
-  <!-- ========================================================================= -->
-  <!-- MODAL 2: ALERTA VERMELHO DE PLANTÃO                                       -->
-  <!-- ========================================================================= -->
   <div id="redAlertModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
     <div class="glass-card bg-obsidian-900 border border-rose-500/40 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl">
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
@@ -1007,11 +1119,6 @@
           <label class="text-slate-400 font-semibold block mb-1">Detalhamento e Ações Imediatas *</label>
           <textarea id="redAlertDetails" rows="3" placeholder="Descreva os impactos na malha e rotas de desvio..." class="w-full bg-obsidian-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-rose-500 transition"></textarea>
         </div>
-
-        <div class="p-3 bg-rose-950/20 border border-rose-500/20 rounded-xl flex items-center space-x-3 text-rose-300 text-[11px]">
-          <i data-lucide="bell" class="w-4 h-4 text-rose-400 flex-shrink-0"></i>
-          <span>Este alerta notificará instantaneamente a diretoria no Telegram (@AtlasJuniorBot) e fixará o incidente no topo da Torre.</span>
-        </div>
       </div>
 
       <div class="flex items-center justify-end space-x-2 pt-2 border-t border-slate-800">
@@ -1023,9 +1130,6 @@
     </div>
   </div>
 
-  <!-- ========================================================================= -->
-  <!-- MODAL 3: SCANNER DE CÓDIGO DE BARRAS & DANFE VIA WEBCAM                   -->
-  <!-- ========================================================================= -->
   <div id="scannerModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
     <div class="glass-card bg-obsidian-900 border border-emerald-500/30 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl">
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
@@ -1050,10 +1154,6 @@
           <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Último Código Identificado:</span>
           <span id="scannedCodeText" class="font-mono text-emerald-400 font-bold text-sm block">Aguardando aproximação da etiqueta...</span>
         </div>
-
-        <p class="text-[11px] text-slate-400">
-          Aponte o código de barras da nota fiscal ou etiqueta de envio para a câmera. Ao detectar, o bipe sonoro confirmará a leitura.
-        </p>
       </div>
 
       <div class="flex items-center justify-end space-x-2 pt-2 border-t border-slate-800">
@@ -1062,9 +1162,6 @@
     </div>
   </div>
 
-  <!-- ========================================================================= -->
-  <!-- MODAL 4: LEITURA COMPLETA DE ARTIGO NEWS                                  -->
-  <!-- ========================================================================= -->
   <div id="newsArticleModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
     <div class="glass-card bg-obsidian-900 border border-purple-500/30 rounded-2xl w-full max-w-2xl p-6 space-y-4 shadow-2xl max-h-[85vh] flex flex-col">
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
@@ -1095,9 +1192,6 @@
     </div>
   </div>
 
-  <!-- ========================================================================= -->
-  <!-- MODAL 5: SALA DE VIDEOCONFERÊNCIA LOGGI                                   -->
-  <!-- ========================================================================= -->
   <div id="meetingModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
     <div class="glass-card bg-obsidian-900 border border-indigo-500/30 rounded-2xl w-full max-w-4xl p-6 space-y-4 shadow-2xl flex flex-col h-[85vh]">
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
@@ -1126,9 +1220,7 @@
     </div>
   </div>
 
-  <!-- ========================================================================= -->
-  <!-- JAVASCRIPT MASTER: LOGGI ENGINE, CLIMA DINÂMICO, NOTÍCIAS & GRUPOS FEED   -->
-  <!-- ========================================================================= -->
+  <!-- JAVASCRIPT MASTER -->
   <script>
     const SESSION_ID = 'whatsapp_principal';
     let allChats = [];
@@ -1139,18 +1231,16 @@
     let currentDialerNumber = '';
     let currentMeetingRoom = 'atlas-loggi-' + Math.floor(100000 + Math.random() * 900000);
 
-    // Estado do Clima & Temas
-    let currentWeatherTheme = 'night-clear';
+    let currentWeatherTheme = 'day-sunny';
     let themeOverride = localStorage.getItem('atlas_theme_override') || 'auto';
     let rainCanvasActive = false;
     let rainAnimationId = null;
 
-    // Estado do Feed de Grupos
     let groupFeedMentionOnly = false;
     let currentNewsList = [];
     let activeNewsCategory = 'ALL';
 
-    // 1. ALTERNA AS TELAS PRINCIPAIS DO SISTEMA
+    // 1. ALTERNA AS TELAS PRINCIPAIS
     function switchMainView(view) {
       const views = ['chats', 'contacts', 'groupfeed', 'tower', 'fleet', 'receipts', 'telephony', 'news'];
       
@@ -1198,7 +1288,7 @@
       lucide.createIcons();
     }
 
-    // 2. RELÓGIO & DATA EM TEMPO REAL (SEGUNDOS AO VIVO)
+    // 2. RELÓGIO & DATA EM TEMPO REAL
     function startRealtimeClock() {
       function update() {
         const now = new Date();
@@ -1220,7 +1310,7 @@
       setInterval(update, 1000);
     }
 
-    // 3. PREVISÃO DO TEMPO DINÂMICA & MOTOR DE TEMA ADAPTATIVO
+    // 3. PREVISÃO DO TEMPO & TEMAS
     async function fetchLiveWeather(isUserClick = false) {
       try {
         const res = await fetch('/api/weather');
@@ -1243,7 +1333,7 @@
             wetRoadAlert.classList.add('hidden');
           }
 
-          currentWeatherTheme = data.recommendedTheme || 'night-clear';
+          currentWeatherTheme = data.recommendedTheme || 'day-sunny';
 
           if (themeOverride === 'auto') {
             applyPlatformTheme(currentWeatherTheme);
@@ -1292,7 +1382,6 @@
       }
     }
 
-    // 4. MOTOR DE CHUVA ATMOSFÉRICA EM CANVAS 60FPS
     function startRainAnimation(dropCount = 90) {
       const canvas = document.getElementById('rainCanvas');
       if (!canvas) return;
@@ -1302,19 +1391,13 @@
       let width = canvas.width = window.innerWidth;
       let height = canvas.height = window.innerHeight;
 
-      window.addEventListener('resize', () => {
-        width = canvas.width = window.innerWidth;
-        height = canvas.height = window.innerHeight;
-      });
-
       const drops = [];
       for (let i = 0; i < dropCount; i++) {
         drops.push({
           x: Math.random() * width,
           y: Math.random() * height,
           length: Math.random() * 20 + 10,
-          speed: Math.random() * 10 + 12,
-          opacity: Math.random() * 0.4 + 0.1
+          speed: Math.random() * 10 + 12
         });
       }
 
@@ -1355,7 +1438,135 @@
       rainCanvasActive = false;
     }
 
-    // 5. NOVO: FEED CONSOLIDADO DE GRUPOS & MENÇÕES VIP
+    // 4. NOVO: MORNING BRIEFING DO DIRETOR
+    async function openMorningBriefingModal() {
+      document.getElementById('morningBriefingModal').classList.remove('hidden');
+      document.getElementById('briefingSummaryText').innerText = 'Carregando indicadores executivos...';
+      try {
+        const res = await fetch('/tower/morning-briefing');
+        const json = await res.json();
+        if (json.success && json.briefing) {
+          const b = json.briefing;
+          document.getElementById('briefingDateDisplay').innerText = b.date;
+          document.getElementById('briefingSummaryText').innerText = b.summary;
+
+          const list = document.getElementById('briefingHighlightsList');
+          list.innerHTML = b.highlights.map(h => {
+            return `
+              <div class="p-2.5 bg-obsidian-950 rounded-xl border border-slate-800 flex items-center space-x-2 text-[11px] text-slate-300">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                <span>${h}</span>
+              </div>
+            `;
+          }).join('');
+        }
+      } catch (e) {
+        document.getElementById('briefingSummaryText').innerText = 'Erro ao carregar Morning Briefing.';
+      }
+    }
+
+    function closeMorningBriefingModal() {
+      document.getElementById('morningBriefingModal').classList.add('hidden');
+    }
+
+    async function sendBriefingToTelegram() {
+      const btn = document.getElementById('btnSendBriefingTelegram');
+      btn.disabled = true;
+      btn.innerText = 'Enviando...';
+      try {
+        const res = await fetch('/tower/morning-briefing/send-telegram', { method: 'POST' });
+        const json = await res.json();
+        if (json.success) {
+          alert('☀️ Morning Briefing transmitido com sucesso no Telegram do Diretor!');
+          closeMorningBriefingModal();
+        } else {
+          alert('Erro ao enviar para o Telegram.');
+        }
+      } catch (_) {
+        alert('Erro de conexão ao enviar para o Telegram.');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="send" class="w-4 h-4"></i> Disparar para meu Telegram (@AtlasJuniorBot)';
+        lucide.createIcons();
+      }
+    }
+
+    // 5. NOVO: RASTREAMENTO DE ENCOMENDA & CHAVE DANFE
+    async function trackPackageOrDanfe() {
+      const input = document.getElementById('trackingDanfeInput');
+      const code = input ? input.value.trim() : '';
+      if (!code) {
+        alert('Digite o código de rastreio ou chave Danfe da NF-e.');
+        return;
+      }
+
+      try {
+        const res = await fetch('/logistics/track/' + encodeURIComponent(code));
+        const json = await res.json();
+        if (json.success) {
+          document.getElementById('trackingCodeDisplay').innerText = json.code;
+          document.getElementById('trackingStatusLabel').innerText = json.statusLabel;
+          document.getElementById('trackingStatusLabel').className = json.statusCode === 'GREEN' ? 'text-sm font-extrabold text-emerald-400' : 'text-sm font-extrabold text-sky-400';
+          document.getElementById('trackingDriverLabel').innerText = json.assignedDriver;
+
+          const timelineBox = document.getElementById('trackingTimelineContainer');
+          timelineBox.innerHTML = json.timeline.map(t => {
+            return `
+              <div class="relative pb-2">
+                <div class="absolute -left-[21px] top-1 w-3 h-3 rounded-full ${t.completed ? 'bg-emerald-500 ring-4 ring-emerald-500/20' : 'bg-slate-700'}"></div>
+                <div class="text-xs font-bold text-white">${t.title}</div>
+                <div class="text-[11px] text-slate-400">${t.location} • ${t.time}</div>
+              </div>
+            `;
+          }).join('');
+
+          document.getElementById('trackingResultModal').classList.remove('hidden');
+          lucide.createIcons();
+        } else {
+          alert('Encomenda não localizada.');
+        }
+      } catch (_) {
+        alert('Erro ao consultar rastreamento.');
+      }
+    }
+
+    function closeTrackingModal() {
+      document.getElementById('trackingResultModal').classList.add('hidden');
+    }
+
+    // 6. NOVO: RESPOSTA DE VOZ EM ÁUDIO PTT (TEXT-TO-SPEECH)
+    async function sendChatMessageAsVoicePtt() {
+      const input = document.getElementById('chatMessageInput');
+      const text = input ? input.value.trim() : '';
+      if (!text || !activeChatJid) {
+        alert('Digite uma mensagem para sintetizar em áudio de voz PTT.');
+        return;
+      }
+
+      input.value = '';
+      try {
+        const res = await fetch('/messages/send-voice-tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId: SESSION_ID,
+            to: activeChatJid,
+            text
+          })
+        });
+        const json = await res.json();
+        if (json.success) {
+          loadChatMessages(activeChatJid);
+          loadChats();
+        } else {
+          alert('Erro ao gerar nota de voz: ' + (json.error || ''));
+        }
+      } catch (err) {
+        alert('Erro na síntese de áudio.');
+      }
+    }
+
+    // 7. FEED CONSOLIDADO DE GRUPOS & MENÇÕES VIP
     async function loadGroupFeed() {
       const container = document.getElementById('groupFeedMessagesContainer');
       const search = document.getElementById('groupFeedSearchInput')?.value || '';
@@ -1456,7 +1667,7 @@
       }
     }
 
-    // 6. NOVO: RADAR NEWS & MERCADO DE ATUAÇÃO & IA
+    // 8. RADAR NEWS & MERCADO DE ATUAÇÃO & IA
     async function loadNewsArticles() {
       const grid = document.getElementById('newsCardsGrid');
       const search = document.getElementById('newsSearchInput')?.value || '';
@@ -1537,7 +1748,7 @@
       document.getElementById('newsArticleModal').classList.add('hidden');
     }
 
-    // 7. CARREGA CONVERSAS E ABAS DO CHAT (LOGGI vs PESSOAL)
+    // 9. CARREGA CONVERSAS E ABAS DO CHAT (LOGGI vs PESSOAL)
     function switchCategoryTab(cat) {
       activeCategoryTab = cat;
       const btnLoggi = document.getElementById('tabBtnLoggi');
@@ -1681,7 +1892,7 @@
       }
     }
 
-    // 8. AGENDA DE CONTATOS DO SQLITE
+    // 10. AGENDA DE CONTATOS DO SQLITE
     async function loadContactsList() {
       const search = document.getElementById('contactSearchInput')?.value || '';
       try {
@@ -1778,7 +1989,7 @@
       }
     }
 
-    // 9. TORRE DE CONTROLE, POLOS E TRANSMISSÃO EM LOTE
+    // 11. TORRE DE CONTROLE, POLOS E TRANSMISSÃO EM LOTE
     async function loadTowerData() {
       try {
         const res = await fetch('/tower/metrics');
@@ -1832,7 +2043,7 @@
         return;
       }
 
-      if (!confirm('Deseja transmitir este comunicado para TODOS os 47 grupos Loggi agora?')) return;
+      if (!confirm('Deseja transmitir este comunicado para TODOS os 56 grupos Loggi agora?')) return;
 
       const btn = document.getElementById('btnBroadcastSend');
       btn.disabled = true;
@@ -1888,7 +2099,7 @@
       }
     }
 
-    // 10. MAPA LEAFLET DA FROTA
+    // 12. MAPA LEAFLET DA FROTA
     async function initFleetMap() {
       const container = document.getElementById('fleetMapContainer');
       if (!container) return;
@@ -1937,7 +2148,7 @@
       initFleetMap();
     }
 
-    // 11. CANHOTOS & OCR
+    // 13. CANHOTOS & OCR
     async function loadReceiptsList() {
       try {
         const res = await fetch('/logistics/receipts');
@@ -1985,7 +2196,7 @@
       reader.readAsDataURL(file);
     }
 
-    // 12. TELEFONIA & SOFTPHONE
+    // 14. TELEFONIA & SOFTPHONE
     function pressDtmf(char) {
       playDtmfTone(char);
       currentDialerNumber += char;
@@ -2036,7 +2247,7 @@
 
     async function loadCallHistory() {}
 
-    // 13. BACKUP ATÔMICO DO SQLITE
+    // 15. BACKUP ATÔMICO DO SQLITE
     async function triggerManualBackup() {
       const btn = document.getElementById('btnBackup');
       btn.disabled = true;
@@ -2058,7 +2269,7 @@
       }
     }
 
-    // 14. NOTIFICAÇÕES WINDOWS NATIVAS
+    // 16. NOTIFICAÇÕES WINDOWS NATIVAS
     function requestDesktopNotifications() {
       if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
         Notification.requestPermission();
@@ -2072,7 +2283,7 @@
       }
     }
 
-    // 15. SCANNER DE CÓDIGO DE BARRAS WEBCAM
+    // 17. SCANNER DE CÓDIGO DE BARRAS WEBCAM
     let html5QrcodeScanner = null;
     function openScannerModal() {
       document.getElementById('scannerModal').classList.remove('hidden');
@@ -2091,7 +2302,7 @@
       document.getElementById('scannerModal').classList.add('hidden');
     }
 
-    // 16. VIDEOCONFERÊNCIA JITSI
+    // 18. VIDEOCONFERÊNCIA JITSI
     function openMeetingModal() {
       document.getElementById('jitsiMeetingIframe').src = 'https://meet.jit.si/' + currentMeetingRoom;
       document.getElementById('meetingModal').classList.remove('hidden');
@@ -2101,7 +2312,7 @@
       document.getElementById('meetingModal').classList.add('hidden');
     }
 
-    // 17. SINC COMPLETA
+    // 19. SINC COMPLETA
     async function syncAllContactsAndHistory() {
       const btn = document.getElementById('railBtnSync');
       btn.classList.add('animate-spin');
@@ -2138,7 +2349,7 @@
     // INICIALIZAÇÃO
     startRealtimeClock();
     fetchLiveWeather();
-    setInterval(fetchLiveWeather, 60000); // Clima a cada 1 min
+    setInterval(fetchLiveWeather, 60000);
     loadChats();
     loadContactsList();
     requestDesktopNotifications();

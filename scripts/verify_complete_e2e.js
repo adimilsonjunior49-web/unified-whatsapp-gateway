@@ -163,6 +163,24 @@ async function runFullE2ETest() {
   const indexHtml = fs.readFileSync(publicIndex, 'utf8');
   check('Interface Adaptativa (Relógio, Clima, Feed Grupos, News & PWA)', fs.existsSync(publicIndex) && indexHtml.includes('theme-night-rain') && indexHtml.includes('viewSectionGroupfeed') && indexHtml.includes('viewSectionNews'), `(Tamanho: ${Math.round(indexHtml.length / 1024)} KB)`);
 
+  // 22. Resposta de Voz em Áudio PTT (TTS Humanizado)
+  const tts = await post('/messages/send-voice-tts', { to: '5511976258311@s.whatsapp.net', text: 'Operação Loggi Cajamar confirmada com sucesso.' });
+  check('Síntese de Voz PTT (TTS Humanizado com FFmpeg/Opus)', tts.status === 200 && tts.data?.success === true, `(Áudio gerado e despachado como nota de voz autêntica)`);
+
+  // 23. Rastreamento Unificado de Encomendas & Chave Danfe (44 dígitos)
+  const track = await get('/logistics/track/35240212345678000195550010008492041009876543');
+  check('Rastreamento Unificado por Chave DANFE (44 dígitos) ou NF', track.status === 200 && track.data?.success === true && track.data?.code?.length === 44 && track.data?.isDanfe === true, `(Código: ${track.data?.code} • Status: ${track.data?.status} • Motorista: ${track.data?.assignedDriver})`);
+
+  // 24. Morning Briefing Executivo & Disparo Telegram (@AtlasJuniorBot)
+  const mb = await get('/tower/morning-briefing');
+  const mbTel = await post('/tower/morning-briefing/send-telegram', {});
+  check('Morning Briefing Executivo & Transmissão Telegram', mb.status === 200 && mb.data?.success === true && mbTel.data?.success === true, `(Pontualidade: ${mb.data?.briefing?.kpis?.onTimeRate} • Telegram enviado para Chat ID 553488777)`);
+
+  // 25. Exportação em Planilha Excel / CSV com BOM UTF-8
+  const expContacts = await get('/contacts/export.csv');
+  const expReceipts = await get('/receipts/export.csv');
+  check('Exportação em Planilha Excel / CSV (Contatos e Canhotos OCR)', expContacts.status === 200 && expContacts.data.startsWith('\uFEFF') && expReceipts.status === 200 && expReceipts.data.startsWith('\uFEFF'), `(BOM UTF-8 válido para abertura direta no Microsoft Excel)`);
+
   console.log('\n================================================================');
   console.log(`📊 RESULTADO FINAL: ${passed}/${total} ETAPAS APROVADAS (${Math.round((passed/total)*100)}%)`);
   console.log('================================================================\n');
