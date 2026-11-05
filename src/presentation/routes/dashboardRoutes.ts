@@ -79,6 +79,10 @@ function renderExecutiveLoggiDashboardHTML(): string {
   <!-- Tailwind CSS & Lucide Icons -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- Leaflet CSS & JS para Rastreamento em Tempo Real da Frota -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -163,6 +167,24 @@ function renderExecutiveLoggiDashboardHTML(): string {
         <button onclick="switchMainView('tower')" id="railBtnTower" class="rail-btn p-3 rounded-2xl text-slate-400 hover:text-white hover:bg-obsidian-850 transition flex flex-col items-center group relative" title="Torre de Controle Operacional Loggi">
           <i data-lucide="tower-control" class="w-5 h-5 text-sky-400"></i>
           <span class="text-[9px] font-bold mt-1">Torre</span>
+        </button>
+
+        <!-- Live Fleet Map (Leaflet) -->
+        <button onclick="switchMainView('fleet')" id="railBtnFleet" class="rail-btn p-3 rounded-2xl text-slate-400 hover:text-white hover:bg-obsidian-850 transition flex flex-col items-center group relative" title="Mapa da Frota em Tempo Real">
+          <i data-lucide="map" class="w-5 h-5 text-amber-400"></i>
+          <span class="text-[9px] font-bold mt-1">Mapa</span>
+        </button>
+
+        <!-- Delivery Receipts & OCR -->
+        <button onclick="switchMainView('receipts')" id="railBtnReceipts" class="rail-btn p-3 rounded-2xl text-slate-400 hover:text-white hover:bg-obsidian-850 transition flex flex-col items-center group relative" title="Canhotos & Comprovantes OCR">
+          <i data-lucide="file-check-2" class="w-5 h-5 text-emerald-400"></i>
+          <span class="text-[9px] font-bold mt-1">Canhotos</span>
+        </button>
+
+        <!-- Telephony / Softphone WebRTC -->
+        <button onclick="switchMainView('telephony')" id="railBtnTelephony" class="rail-btn p-3 rounded-2xl text-slate-400 hover:text-white hover:bg-obsidian-850 transition flex flex-col items-center group relative" title="Telefonia & Discador WebRTC">
+          <i data-lucide="phone-call" class="w-5 h-5 text-cyan-400"></i>
+          <span class="text-[9px] font-bold mt-1">Telefone</span>
         </button>
 
         <!-- Video Conference & Meeting -->
@@ -390,6 +412,247 @@ function renderExecutiveLoggiDashboardHTML(): string {
     </div>
 
     <!-- --------------------------------------------------------------------- -->
+    <!-- VIEW D: MAPA DA FROTA EM TEMPO REAL (LEAFLET / LOGISTICS)             -->
+    <!-- --------------------------------------------------------------------- -->
+    <div id="viewSectionFleet" class="hidden flex-1 flex flex-col bg-obsidian-950 p-6 overflow-hidden space-y-4">
+      <div class="border-b border-slate-800 pb-3 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold">
+            <i data-lucide="map" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-lg font-extrabold text-white">Rastreamento da Frota & Polos Loggi</h2>
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span> GPS TELEMETRIA ATIVA
+              </span>
+            </div>
+            <p class="text-xs text-slate-400">Posicionamento geográfico dos centros de distribuição e carretas em rota.</p>
+          </div>
+        </div>
+
+        <div class="flex items-center space-x-2">
+          <button onclick="focusMapOnHub(-23.3556, -46.8778, 'Cajamar')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-xl font-semibold border border-slate-700 transition">
+            Cajamar
+          </button>
+          <button onclick="focusMapOnHub(-23.5284, -46.7319, 'Leopoldina')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-xl font-semibold border border-slate-700 transition">
+            Leopoldina
+          </button>
+          <button onclick="focusMapOnHub(-22.9056, -47.0608, 'Campinas')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-xl font-semibold border border-slate-700 transition">
+            Campinas
+          </button>
+          <button onclick="focusMapOnHub(-22.8122, -43.3644, 'Rio')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-xl font-semibold border border-slate-700 transition">
+            Rio de Janeiro
+          </button>
+        </div>
+      </div>
+
+      <div class="flex-1 flex gap-4 min-h-0">
+        <!-- Leaflet Map Container -->
+        <div id="fleetMapContainer" class="flex-1 rounded-2xl border border-slate-800 overflow-hidden bg-obsidian-900 relative">
+          <div id="fleetMap" class="w-full h-full z-10"></div>
+        </div>
+
+        <!-- Veículos em Rota Sidebar -->
+        <div class="w-80 glass-card rounded-2xl border border-slate-800 p-4 flex flex-col space-y-3 overflow-hidden">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+            <span class="text-xs font-bold text-white uppercase tracking-wider">Veículos Monitorados</span>
+            <span class="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-bold">5 Ativos</span>
+          </div>
+          <div class="flex-1 overflow-y-auto space-y-2 text-xs" id="fleetVehicleList">
+            <div class="p-3 bg-obsidian-900 border border-slate-800 rounded-xl space-y-1">
+              <div class="flex justify-between items-center">
+                <span class="font-bold text-white">CAR-401 (Marcos Oliveira)</span>
+                <span class="text-emerald-400 font-mono text-[10px]">68 km/h</span>
+              </div>
+              <p class="text-[11px] text-slate-400">Transferência Cajamar -&gt; Leopoldina</p>
+            </div>
+            <div class="p-3 bg-obsidian-900 border border-slate-800 rounded-xl space-y-1">
+              <div class="flex justify-between items-center">
+                <span class="font-bold text-white">VUC-204 (Eduardo Santos)</span>
+                <span class="text-amber-400 font-mono text-[10px]">32 km/h</span>
+              </div>
+              <p class="text-[11px] text-slate-400">Last-Mile Pinheiros / Butantã</p>
+            </div>
+            <div class="p-3 bg-obsidian-900 border border-slate-800 rounded-xl space-y-1">
+              <div class="flex justify-between items-center">
+                <span class="font-bold text-white">CAR-512 (Valdir Pereira)</span>
+                <span class="text-emerald-400 font-mono text-[10px]">75 km/h</span>
+              </div>
+              <p class="text-[11px] text-slate-400">Expedição Campinas -&gt; RMC</p>
+            </div>
+            <div class="p-3 bg-obsidian-900 border border-slate-800 rounded-xl space-y-1">
+              <div class="flex justify-between items-center">
+                <span class="font-bold text-white">VAN-108 (Rodrigo Mendes)</span>
+                <span class="text-emerald-400 font-mono text-[10px]">45 km/h</span>
+              </div>
+              <p class="text-[11px] text-slate-400">Distribuição Pavuna / Baixada</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- --------------------------------------------------------------------- -->
+    <!-- VIEW E: CANHOTOS & COMPROVANTES COM OCR                               -->
+    <!-- --------------------------------------------------------------------- -->
+    <div id="viewSectionReceipts" class="hidden flex-1 flex flex-col bg-obsidian-950 p-6 overflow-y-auto space-y-6">
+      <div class="border-b border-slate-800 pb-4 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+            <i data-lucide="file-check-2" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h2 class="text-lg font-extrabold text-white">Canhotos & Comprovantes com OCR Automático</h2>
+            <p class="text-xs text-slate-400">Reconhecimento de Notas Fiscais e Danfes enviadas pelos motoristas no WhatsApp.</p>
+          </div>
+        </div>
+
+        <button onclick="simulateOCRReceipt()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl flex items-center gap-2 transition shadow-lg shadow-emerald-600/20">
+          <i data-lucide="scan" class="w-4 h-4"></i> Simular Leitura OCR de Canhoto
+        </button>
+      </div>
+
+      <div class="glass-card rounded-2xl p-5 border border-slate-800 bg-obsidian-900/90 space-y-4">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-white uppercase tracking-wider">Comprovantes Baixados Recentemente</span>
+          <button onclick="loadReceiptsList()" class="text-xs text-sky-400 hover:text-sky-300 flex items-center gap-1">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Atualizar
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead>
+              <tr class="border-b border-slate-800 text-slate-400">
+                <th class="pb-2 font-semibold">Horário</th>
+                <th class="pb-2 font-semibold">Nota Fiscal / Danfe</th>
+                <th class="pb-2 font-semibold">Motorista / Origem</th>
+                <th class="pb-2 font-semibold">Texto Extraído pelo OCR</th>
+                <th class="pb-2 font-semibold">Status</th>
+              </tr>
+            </thead>
+            <tbody id="receiptsTableBody" class="divide-y divide-slate-800/60 text-slate-300">
+              <tr>
+                <td class="py-3 text-slate-400 font-mono">19:30</td>
+                <td class="py-3 font-mono font-bold text-emerald-400">NF-849204</td>
+                <td class="py-3 font-semibold text-white">Carlos Motorista - Rota 14</td>
+                <td class="py-3 text-slate-300">DANFE / NOTA FISCAL Nº 849204 - RECEBEDOR: MERCADO CENTRAL SP - ASSINADO NA DOCA</td>
+                <td class="py-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400">APROVADO</span></td>
+              </tr>
+              <tr>
+                <td class="py-3 text-slate-400 font-mono">19:00</td>
+                <td class="py-3 font-mono font-bold text-emerald-400">NF-772190</td>
+                <td class="py-3 font-semibold text-white">Eduardo Loggi - Cajamar</td>
+                <td class="py-3 text-slate-300">CANHOTO COMPROVANTE DE ENTREGA Nº 772190 - CARRETA DESCARREGADA SEM AVARIAS</td>
+                <td class="py-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400">APROVADO</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- --------------------------------------------------------------------- -->
+    <!-- VIEW F: TELEFONIA EXECUTIVA & DISCADOR WEBRTC (SOFTPHONE)             -->
+    <!-- --------------------------------------------------------------------- -->
+    <div id="viewSectionTelephony" class="hidden flex-1 flex flex-col bg-obsidian-950 p-6 overflow-y-auto space-y-6">
+      <div class="border-b border-slate-800 pb-4 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-2xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold">
+            <i data-lucide="phone-call" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-lg font-extrabold text-white">Telefonia Executiva & Softphone WebRTC</h2>
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> LINHA SIP/WEBRTC PRONTA
+              </span>
+            </div>
+            <p class="text-xs text-slate-400">Faça e receba chamadas com fone/microfone para motoristas e polos.</p>
+          </div>
+        </div>
+
+        <span class="text-xs text-slate-400 font-mono">Linha Operacional Loggi (+55 11 97625-8311)</span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Teclado Discador (Dialpad) -->
+        <div class="glass-card rounded-2xl p-6 border border-slate-800 bg-obsidian-900 flex flex-col items-center space-y-4 max-w-sm mx-auto w-full">
+          <!-- Visor -->
+          <div class="w-full bg-obsidian-950 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
+            <input type="text" id="dialpadInput" placeholder="Digite o número ou DDD..." class="bg-transparent font-mono text-lg font-bold text-white w-full focus:outline-none">
+            <button onclick="dialpadClear()" class="text-slate-500 hover:text-white transition p-1">
+              <i data-lucide="delete" class="w-5 h-5"></i>
+            </button>
+          </div>
+
+          <!-- Teclas 0-9, *, # -->
+          <div class="grid grid-cols-3 gap-3 w-full">
+            <button onclick="dialpadPress('1')" class="h-12 rounded-2xl bg-obsidian-850 hover:bg-slate-800 border border-slate-800 text-white font-bold text-base transition flex flex-col items-center justify-center">1<span class="text-[8px] text-slate-500 font-normal">--</span></button>
+            <button onclick="dialpadPress('2')" class="h-12 rounded-2xl bg-obsidian-850 hover:bg-slate-800 border border-slate-800 text-white font-bold text-base transition flex flex-col items-center justify-center">2<span class="text-[8px] text-slate-500 font-normal">ABC</span></button>
+            <button onclick="dialpadPress('3')" class="h-12 rounded-2xl bg-obsidian-850 hover:bg-slate-800 border border-slate-800 text-white font-bold text-base transition flex flex-col items-center justify-center">3<span class="text-[8px] text-slate-500 font-normal">DEF</span></button>
+            <button onclick="dialpadPress('4')" class="h-12 rounded-2xl bg-obsidian-850 hover:bg-slate-800 border border-slate-800 text-white font-bold text-base transition flex flex-col items-center justify-center">4<span class="text-[8px] text-slate-500 font-normal">GHI</span></button>
+            <button onclick="dialpadPress('5')" class="h-12 rounded-2xl bg-obsidian-850 hover:bg-slate-800 border border-slate-800 text-white font-bold text-base transition flex flex-col items-center justify-center">5<span class="text-[8px] text-slate-500 font-normal">JKL</span></button>
+            <button onclick="dialpadPress('6')" class="h-12 rounded-2xl bg-obsidian-850 hover:bg-slate-800 border border-slate-800 text-white font-bold text-base transition flex flex-col items-center justify-center">6<span class="text-[8px] text-slate-500 font-normal">MNO</span></button>
+            <button onclick="dialpadPress('7')" class="h-12 rounded-2xl bg-obsidian-850 hover:bg-slate-800 border border-slate-800 text-white font-bold text-base transition flex flex-col items-center justify-center">7<span class="text-[8px] text-slate-500 font-normal">PQRS</span></button>
+            <button onclick="dialpadPress('8')" class="h-12 rounded-2xl bg-obsidian-850 hover:bg-slate-800 border border-slate-800 text-white font-bold text-base transition flex flex-col items-center justify-center">8<span class="text-[8px] text-slate-500 font-normal">TUV</span></button>
+            <button onclick="dialpadPress('9')" class="h-12 rounded-2xl bg-obsidian-850 hover:bg-slate-800 border border-slate-800 text-white font-bold text-base transition flex flex-col items-center justify-center">9<span class="text-[8px] text-slate-500 font-normal">WXYZ</span></button>
+            <button onclick="dialpadPress('*')" class="h-12 rounded-2xl bg-obsidian-850 hover:bg-slate-800 border border-slate-800 text-white font-bold text-base transition flex items-center justify-center">*</button>
+            <button onclick="dialpadPress('0')" class="h-12 rounded-2xl bg-obsidian-850 hover:bg-slate-800 border border-slate-800 text-white font-bold text-base transition flex flex-col items-center justify-center">0<span class="text-[8px] text-slate-500 font-normal">+</span></button>
+            <button onclick="dialpadPress('#')" class="h-12 rounded-2xl bg-obsidian-850 hover:bg-slate-800 border border-slate-800 text-white font-bold text-base transition flex items-center justify-center">#</button>
+          </div>
+
+          <!-- Botões de Ação de Chamada -->
+          <div class="flex items-center space-x-3 w-full pt-2">
+            <button onclick="startPhoneCall()" id="btnStartCall" class="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition shadow-lg shadow-emerald-600/30">
+              <i data-lucide="phone" class="w-5 h-5"></i> Ligar
+            </button>
+            <button onclick="endPhoneCall()" id="btnEndCall" class="hidden flex-1 py-3 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-2xl items-center justify-center gap-2 transition shadow-lg shadow-rose-600/30">
+              <i data-lucide="phone-off" class="w-5 h-5"></i> Desligar
+            </button>
+          </div>
+
+          <!-- Status de Chamada Ativa -->
+          <div id="callStatusBox" class="hidden w-full p-3 bg-obsidian-950 border border-emerald-500/40 rounded-xl text-center space-y-1">
+            <span class="text-xs text-emerald-400 font-bold block">CHAMADA EM ANDAMENTO</span>
+            <span id="callTimer" class="font-mono text-sm text-white font-bold">00:00</span>
+          </div>
+        </div>
+
+        <!-- Histórico de Chamadas Recentes -->
+        <div class="md:col-span-2 glass-card rounded-2xl p-6 border border-slate-800 bg-obsidian-900 space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <h3 class="font-bold text-white text-sm">Histórico de Chamadas Telefônicas</h3>
+            <span class="text-xs text-slate-400">Gravador e Registro Automático</span>
+          </div>
+          <div class="space-y-2 text-xs" id="callHistoryList">
+            <div class="p-3 bg-obsidian-950 border border-slate-800 rounded-xl flex items-center justify-between">
+              <div class="flex items-center space-x-3">
+                <div class="p-2 rounded-xl bg-emerald-500/20 text-emerald-400"><i data-lucide="phone-outgoing" class="w-4 h-4"></i></div>
+                <div>
+                  <span class="font-bold text-white block">Marcos Oliveira (Carreta SP-RJ)</span>
+                  <span class="text-slate-400 text-[11px] font-mono">11987654321 • Duração: 01:45</span>
+                </div>
+              </div>
+              <span class="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full font-bold">Concluída</span>
+            </div>
+            <div class="p-3 bg-obsidian-950 border border-slate-800 rounded-xl flex items-center justify-between">
+              <div class="flex items-center space-x-3">
+                <div class="p-2 rounded-xl bg-emerald-500/20 text-emerald-400"><i data-lucide="phone-outgoing" class="w-4 h-4"></i></div>
+                <div>
+                  <span class="font-bold text-white">Central Cajamar - Doca 04</span>
+                  <span class="text-slate-400 text-[11px] font-mono">11982223344 • Duração: 02:10</span>
+                </div>
+              </div>
+              <span class="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full font-bold">Concluída</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- --------------------------------------------------------------------- -->
     <!-- VIEW B: AGENDA DE CONTATOS SALVOS                                     -->
     <!-- --------------------------------------------------------------------- -->
     <div id="viewSectionContacts" class="hidden flex-1 flex flex-col bg-obsidian-950/90 overflow-hidden h-full">
@@ -437,6 +700,247 @@ function renderExecutiveLoggiDashboardHTML(): string {
     </div>
 
     <!-- --------------------------------------------------------------------- -->
+    <!-- VIEW D: MAPA DA FROTA EM TEMPO REAL (LEAFLET / LOGISTICS)             -->
+    <!-- --------------------------------------------------------------------- -->
+    <div id="viewSectionFleet" class="hidden flex-1 flex flex-col bg-obsidian-950 p-6 overflow-hidden space-y-4">
+      <div class="border-b border-slate-800 pb-3 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold">
+            <i data-lucide="map" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-lg font-extrabold text-white">Rastreamento da Frota & Polos Loggi</h2>
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span> GPS TELEMETRIA ATIVA
+              </span>
+            </div>
+            <p class="text-xs text-slate-400">Posicionamento geográfico dos centros de distribuição e carretas em rota.</p>
+          </div>
+        </div>
+
+        <div class="flex items-center space-x-2">
+          <button onclick="focusMapOnHub(-23.3556, -46.8778, 'Cajamar')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-xl font-semibold border border-slate-700 transition">
+            Cajamar
+          </button>
+          <button onclick="focusMapOnHub(-23.5284, -46.7319, 'Leopoldina')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-xl font-semibold border border-slate-700 transition">
+            Leopoldina
+          </button>
+          <button onclick="focusMapOnHub(-22.9056, -47.0608, 'Campinas')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-xl font-semibold border border-slate-700 transition">
+            Campinas
+          </button>
+          <button onclick="focusMapOnHub(-22.8122, -43.3644, 'Rio')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-xl font-semibold border border-slate-700 transition">
+            Rio de Janeiro
+          </button>
+        </div>
+      </div>
+
+      <div class="flex-1 flex gap-4 min-h-0">
+        <!-- Leaflet Map Container -->
+        <div id="fleetMapContainer" class="flex-1 rounded-2xl border border-slate-800 overflow-hidden bg-obsidian-900 relative">
+          <div id="fleetMap" class="w-full h-full z-10"></div>
+        </div>
+
+        <!-- Veículos em Rota Sidebar -->
+        <div class="w-80 glass-card rounded-2xl border border-slate-800 p-4 flex flex-col space-y-3 overflow-hidden">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+            <span class="text-xs font-bold text-white uppercase tracking-wider">Veículos Monitorados</span>
+            <span class="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-bold">5 Ativos</span>
+          </div>
+          <div class="flex-1 overflow-y-auto space-y-2 text-xs" id="fleetVehicleList">
+            <div class="p-3 bg-obsidian-900 border border-slate-800 rounded-xl space-y-1">
+              <div class="flex justify-between items-center">
+                <span class="font-bold text-white">CAR-401 (Marcos Oliveira)</span>
+                <span class="text-emerald-400 font-mono text-[10px]">68 km/h</span>
+              </div>
+              <p class="text-[11px] text-slate-400">Transferência Cajamar -&gt; Leopoldina</p>
+            </div>
+            <div class="p-3 bg-obsidian-900 border border-slate-800 rounded-xl space-y-1">
+              <div class="flex justify-between items-center">
+                <span class="font-bold text-white">VUC-204 (Eduardo Santos)</span>
+                <span class="text-amber-400 font-mono text-[10px]">32 km/h</span>
+              </div>
+              <p class="text-[11px] text-slate-400">Last-Mile Pinheiros / Butantã</p>
+            </div>
+            <div class="p-3 bg-obsidian-900 border border-slate-800 rounded-xl space-y-1">
+              <div class="flex justify-between items-center">
+                <span class="font-bold text-white">CAR-512 (Valdir Pereira)</span>
+                <span class="text-emerald-400 font-mono text-[10px]">75 km/h</span>
+              </div>
+              <p class="text-[11px] text-slate-400">Expedição Campinas -&gt; RMC</p>
+            </div>
+            <div class="p-3 bg-obsidian-900 border border-slate-800 rounded-xl space-y-1">
+              <div class="flex justify-between items-center">
+                <span class="font-bold text-white">VAN-108 (Rodrigo Mendes)</span>
+                <span class="text-emerald-400 font-mono text-[10px]">45 km/h</span>
+              </div>
+              <p class="text-[11px] text-slate-400">Distribuição Pavuna / Baixada</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- --------------------------------------------------------------------- -->
+    <!-- VIEW E: CANHOTOS & COMPROVANTES COM OCR                               -->
+    <!-- --------------------------------------------------------------------- -->
+    <div id="viewSectionReceipts" class="hidden flex-1 flex flex-col bg-obsidian-950 p-6 overflow-y-auto space-y-6">
+      <div class="border-b border-slate-800 pb-4 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+            <i data-lucide="file-check-2" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h2 class="text-lg font-extrabold text-white">Canhotos & Comprovantes com OCR Automático</h2>
+            <p class="text-xs text-slate-400">Reconhecimento de Notas Fiscais e Danfes enviadas pelos motoristas no WhatsApp.</p>
+          </div>
+        </div>
+
+        <button onclick="simulateOCRReceipt()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl flex items-center gap-2 transition shadow-lg shadow-emerald-600/20">
+          <i data-lucide="scan" class="w-4 h-4"></i> Simular Leitura OCR de Canhoto
+        </button>
+      </div>
+
+      <div class="glass-card rounded-2xl p-5 border border-slate-800 bg-obsidian-900/90 space-y-4">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-white uppercase tracking-wider">Comprovantes Baixados Recentemente</span>
+          <button onclick="loadReceiptsList()" class="text-xs text-sky-400 hover:text-sky-300 flex items-center gap-1">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Atualizar
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead>
+              <tr class="border-b border-slate-800 text-slate-400">
+                <th class="pb-2 font-semibold">Horário</th>
+                <th class="pb-2 font-semibold">Nota Fiscal / Danfe</th>
+                <th class="pb-2 font-semibold">Motorista / Origem</th>
+                <th class="pb-2 font-semibold">Texto Extraído pelo OCR</th>
+                <th class="pb-2 font-semibold">Status</th>
+              </tr>
+            </thead>
+            <tbody id="receiptsTableBody" class="divide-y divide-slate-800/60 text-slate-300">
+              <tr>
+                <td class="py-3 text-slate-400 font-mono">19:30</td>
+                <td class="py-3 font-mono font-bold text-emerald-400">NF-849204</td>
+                <td class="py-3 font-semibold text-white">Carlos Motorista - Rota 14</td>
+                <td class="py-3 text-slate-300">DANFE / NOTA FISCAL Nº 849204 - RECEBEDOR: MERCADO CENTRAL SP - ASSINADO NA DOCA</td>
+                <td class="py-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400">APROVADO</span></td>
+              </tr>
+              <tr>
+                <td class="py-3 text-slate-400 font-mono">19:00</td>
+                <td class="py-3 font-mono font-bold text-emerald-400">NF-772190</td>
+                <td class="py-3 font-semibold text-white">Eduardo Loggi - Cajamar</td>
+                <td class="py-3 text-slate-300">CANHOTO COMPROVANTE DE ENTREGA Nº 772190 - CARRETA DESCARREGADA SEM AVARIAS</td>
+                <td class="py-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400">APROVADO</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- --------------------------------------------------------------------- -->
+    <!-- VIEW F: TELEFONIA EXECUTIVA & DISCADOR WEBRTC (SOFTPHONE)             -->
+    <!-- --------------------------------------------------------------------- -->
+    <div id="viewSectionTelephony" class="hidden flex-1 flex flex-col bg-obsidian-950 p-6 overflow-y-auto space-y-6">
+      <div class="border-b border-slate-800 pb-4 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-2xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold">
+            <i data-lucide="phone-call" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-lg font-extrabold text-white">Telefonia Executiva & Softphone WebRTC</h2>
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> LINHA SIP/WEBRTC PRONTA
+              </span>
+            </div>
+            <p class="text-xs text-slate-400">Faça e receba chamadas com fone/microfone para motoristas e polos.</p>
+          </div>
+        </div>
+
+        <span class="text-xs text-slate-400 font-mono">Linha Operacional Loggi (+55 11 97625-8311)</span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Teclado Discador (Dialpad) -->
+        <div class="glass-card rounded-2xl p-6 border border-slate-800 bg-obsidian-900 flex flex-col items-center space-y-4 max-w-sm mx-auto w-full">
+          <!-- Visor -->
+          <div class="w-full bg-obsidian-950 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
+            <input type="text" id="dialpadInput" placeholder="Digite o número ou DDD..." class="bg-transparent font-mono text-lg font-bold text-white w-full focus:outline-none">
+            <button onclick="dialpadClear()" class="text-slate-500 hover:text-white transition p-1">
+              <i data-lucide="delete" class="w-5 h-5"></i>
+            </button>
+          </div>
+
+          <!-- Teclas 0-9, *, # -->
+          <div class="grid grid-cols-3 gap-3 w-full">
+            <button onclick="dialpadPress('1')" class="h-12 rounded-2xl bg-obsidian-850 hover:bg-slate-800 border border-slate-800 text-white font-bold text-base transition flex flex-col items-center justify-center">1<span class="text-[8px] text-slate-500 font-normal">--</span></button>
+            <button onclick="dialpadPress('2')" class="h-12 rounded-2xl bg-obsidian-850 hover:bg-slate-800 border border-slate-800 text-white font-bold text-base transition flex flex-col items-center justify-center">2<span class="text-[8px] text-slate-500 font-normal">ABC</span></button>
+            <button onclick="dialpadPress('3')" class="h-12 rounded-2xl bg-obsidian-850 hover:bg-slate-800 border border-slate-800 text-white font-bold text-base transition flex flex-col items-center justify-center">3<span class="text-[8px] text-slate-500 font-normal">DEF</span></button>
+            <button onclick="dialpadPress('4')" class="h-12 rounded-2xl bg-obsidian-850 hover:bg-slate-800 border border-slate-800 text-white font-bold text-base transition flex flex-col items-center justify-center">4<span class="text-[8px] text-slate-500 font-normal">GHI</span></button>
+            <button onclick="dialpadPress('5')" class="h-12 rounded-2xl bg-obsidian-850 hover:bg-slate-800 border border-slate-800 text-white font-bold text-base transition flex flex-col items-center justify-center">5<span class="text-[8px] text-slate-500 font-normal">JKL</span></button>
+            <button onclick="dialpadPress('6')" class="h-12 rounded-2xl bg-obsidian-850 hover:bg-slate-800 border border-slate-800 text-white font-bold text-base transition flex flex-col items-center justify-center">6<span class="text-[8px] text-slate-500 font-normal">MNO</span></button>
+            <button onclick="dialpadPress('7')" class="h-12 rounded-2xl bg-obsidian-850 hover:bg-slate-800 border border-slate-800 text-white font-bold text-base transition flex flex-col items-center justify-center">7<span class="text-[8px] text-slate-500 font-normal">PQRS</span></button>
+            <button onclick="dialpadPress('8')" class="h-12 rounded-2xl bg-obsidian-850 hover:bg-slate-800 border border-slate-800 text-white font-bold text-base transition flex flex-col items-center justify-center">8<span class="text-[8px] text-slate-500 font-normal">TUV</span></button>
+            <button onclick="dialpadPress('9')" class="h-12 rounded-2xl bg-obsidian-850 hover:bg-slate-800 border border-slate-800 text-white font-bold text-base transition flex flex-col items-center justify-center">9<span class="text-[8px] text-slate-500 font-normal">WXYZ</span></button>
+            <button onclick="dialpadPress('*')" class="h-12 rounded-2xl bg-obsidian-850 hover:bg-slate-800 border border-slate-800 text-white font-bold text-base transition flex items-center justify-center">*</button>
+            <button onclick="dialpadPress('0')" class="h-12 rounded-2xl bg-obsidian-850 hover:bg-slate-800 border border-slate-800 text-white font-bold text-base transition flex flex-col items-center justify-center">0<span class="text-[8px] text-slate-500 font-normal">+</span></button>
+            <button onclick="dialpadPress('#')" class="h-12 rounded-2xl bg-obsidian-850 hover:bg-slate-800 border border-slate-800 text-white font-bold text-base transition flex items-center justify-center">#</button>
+          </div>
+
+          <!-- Botões de Ação de Chamada -->
+          <div class="flex items-center space-x-3 w-full pt-2">
+            <button onclick="startPhoneCall()" id="btnStartCall" class="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition shadow-lg shadow-emerald-600/30">
+              <i data-lucide="phone" class="w-5 h-5"></i> Ligar
+            </button>
+            <button onclick="endPhoneCall()" id="btnEndCall" class="hidden flex-1 py-3 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-2xl items-center justify-center gap-2 transition shadow-lg shadow-rose-600/30">
+              <i data-lucide="phone-off" class="w-5 h-5"></i> Desligar
+            </button>
+          </div>
+
+          <!-- Status de Chamada Ativa -->
+          <div id="callStatusBox" class="hidden w-full p-3 bg-obsidian-950 border border-emerald-500/40 rounded-xl text-center space-y-1">
+            <span class="text-xs text-emerald-400 font-bold block">CHAMADA EM ANDAMENTO</span>
+            <span id="callTimer" class="font-mono text-sm text-white font-bold">00:00</span>
+          </div>
+        </div>
+
+        <!-- Histórico de Chamadas Recentes -->
+        <div class="md:col-span-2 glass-card rounded-2xl p-6 border border-slate-800 bg-obsidian-900 space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <h3 class="font-bold text-white text-sm">Histórico de Chamadas Telefônicas</h3>
+            <span class="text-xs text-slate-400">Gravador e Registro Automático</span>
+          </div>
+          <div class="space-y-2 text-xs" id="callHistoryList">
+            <div class="p-3 bg-obsidian-950 border border-slate-800 rounded-xl flex items-center justify-between">
+              <div class="flex items-center space-x-3">
+                <div class="p-2 rounded-xl bg-emerald-500/20 text-emerald-400"><i data-lucide="phone-outgoing" class="w-4 h-4"></i></div>
+                <div>
+                  <span class="font-bold text-white block">Marcos Oliveira (Carreta SP-RJ)</span>
+                  <span class="text-slate-400 text-[11px] font-mono">11987654321 • Duração: 01:45</span>
+                </div>
+              </div>
+              <span class="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full font-bold">Concluída</span>
+            </div>
+            <div class="p-3 bg-obsidian-950 border border-slate-800 rounded-xl flex items-center justify-between">
+              <div class="flex items-center space-x-3">
+                <div class="p-2 rounded-xl bg-emerald-500/20 text-emerald-400"><i data-lucide="phone-outgoing" class="w-4 h-4"></i></div>
+                <div>
+                  <span class="font-bold text-white">Central Cajamar - Doca 04</span>
+                  <span class="text-slate-400 text-[11px] font-mono">11982223344 • Duração: 02:10</span>
+                </div>
+              </div>
+              <span class="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full font-bold">Concluída</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- --------------------------------------------------------------------- -->
     <!-- VIEW C: TORRE DE CONTROLE ANALÍTICA GERAL (PAINÉIS & FARÓIS LOGGI)     -->
     <!-- --------------------------------------------------------------------- -->
     <div id="viewSectionTower" class="hidden flex-1 flex flex-col bg-obsidian-950 p-6 overflow-y-auto space-y-6">
@@ -460,6 +964,12 @@ function renderExecutiveLoggiDashboardHTML(): string {
 
         <!-- Quick Tower Actions -->
         <div class="flex flex-wrap items-center gap-2">
+          <button onclick="window.open('/tower/report-html', '_blank')" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs rounded-xl flex items-center gap-1.5 transition" title="Exportar Relatório Consolidado para PDF / Impressão">
+            <i data-lucide="printer" class="w-4 h-4 text-emerald-400"></i> Relatório PDF
+          </button>
+          <button onclick="openDispatcherModal()" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition shadow-lg shadow-indigo-600/20" title="Consultar regras operacionais com o Despachante IA">
+            <i data-lucide="bot" class="w-4 h-4"></i> Despachante IA
+          </button>
           <button onclick="openBroadcastModal()" class="px-3 py-2 bg-loggi-500 hover:bg-loggi-600 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition shadow-lg shadow-loggi-500/20" title="Enviar comunicado para todos os grupos Loggi">
             <i data-lucide="radio" class="w-4 h-4"></i> Comunicado Geral
           </button>
@@ -733,6 +1243,247 @@ function renderExecutiveLoggiDashboardHTML(): string {
 
     </div>
 
+    <!-- --------------------------------------------------------------------- -->
+    <!-- VIEW D: MAPA DA FROTA EM TEMPO REAL (LEAFLET / LOGISTICS)             -->
+    <!-- --------------------------------------------------------------------- -->
+    <div id="viewSectionFleet" class="hidden flex-1 flex flex-col bg-obsidian-950 p-6 overflow-hidden space-y-4">
+      <div class="border-b border-slate-800 pb-3 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold">
+            <i data-lucide="map" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-lg font-extrabold text-white">Rastreamento da Frota & Polos Loggi</h2>
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span> GPS TELEMETRIA ATIVA
+              </span>
+            </div>
+            <p class="text-xs text-slate-400">Posicionamento geográfico dos centros de distribuição e carretas em rota.</p>
+          </div>
+        </div>
+
+        <div class="flex items-center space-x-2">
+          <button onclick="focusMapOnHub(-23.3556, -46.8778, 'Cajamar')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-xl font-semibold border border-slate-700 transition">
+            Cajamar
+          </button>
+          <button onclick="focusMapOnHub(-23.5284, -46.7319, 'Leopoldina')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-xl font-semibold border border-slate-700 transition">
+            Leopoldina
+          </button>
+          <button onclick="focusMapOnHub(-22.9056, -47.0608, 'Campinas')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-xl font-semibold border border-slate-700 transition">
+            Campinas
+          </button>
+          <button onclick="focusMapOnHub(-22.8122, -43.3644, 'Rio')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-xl font-semibold border border-slate-700 transition">
+            Rio de Janeiro
+          </button>
+        </div>
+      </div>
+
+      <div class="flex-1 flex gap-4 min-h-0">
+        <!-- Leaflet Map Container -->
+        <div id="fleetMapContainer" class="flex-1 rounded-2xl border border-slate-800 overflow-hidden bg-obsidian-900 relative">
+          <div id="fleetMap" class="w-full h-full z-10"></div>
+        </div>
+
+        <!-- Veículos em Rota Sidebar -->
+        <div class="w-80 glass-card rounded-2xl border border-slate-800 p-4 flex flex-col space-y-3 overflow-hidden">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+            <span class="text-xs font-bold text-white uppercase tracking-wider">Veículos Monitorados</span>
+            <span class="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-bold">5 Ativos</span>
+          </div>
+          <div class="flex-1 overflow-y-auto space-y-2 text-xs" id="fleetVehicleList">
+            <div class="p-3 bg-obsidian-900 border border-slate-800 rounded-xl space-y-1">
+              <div class="flex justify-between items-center">
+                <span class="font-bold text-white">CAR-401 (Marcos Oliveira)</span>
+                <span class="text-emerald-400 font-mono text-[10px]">68 km/h</span>
+              </div>
+              <p class="text-[11px] text-slate-400">Transferência Cajamar -&gt; Leopoldina</p>
+            </div>
+            <div class="p-3 bg-obsidian-900 border border-slate-800 rounded-xl space-y-1">
+              <div class="flex justify-between items-center">
+                <span class="font-bold text-white">VUC-204 (Eduardo Santos)</span>
+                <span class="text-amber-400 font-mono text-[10px]">32 km/h</span>
+              </div>
+              <p class="text-[11px] text-slate-400">Last-Mile Pinheiros / Butantã</p>
+            </div>
+            <div class="p-3 bg-obsidian-900 border border-slate-800 rounded-xl space-y-1">
+              <div class="flex justify-between items-center">
+                <span class="font-bold text-white">CAR-512 (Valdir Pereira)</span>
+                <span class="text-emerald-400 font-mono text-[10px]">75 km/h</span>
+              </div>
+              <p class="text-[11px] text-slate-400">Expedição Campinas -&gt; RMC</p>
+            </div>
+            <div class="p-3 bg-obsidian-900 border border-slate-800 rounded-xl space-y-1">
+              <div class="flex justify-between items-center">
+                <span class="font-bold text-white">VAN-108 (Rodrigo Mendes)</span>
+                <span class="text-emerald-400 font-mono text-[10px]">45 km/h</span>
+              </div>
+              <p class="text-[11px] text-slate-400">Distribuição Pavuna / Baixada</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- --------------------------------------------------------------------- -->
+    <!-- VIEW E: CANHOTOS & COMPROVANTES COM OCR                               -->
+    <!-- --------------------------------------------------------------------- -->
+    <div id="viewSectionReceipts" class="hidden flex-1 flex flex-col bg-obsidian-950 p-6 overflow-y-auto space-y-6">
+      <div class="border-b border-slate-800 pb-4 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+            <i data-lucide="file-check-2" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h2 class="text-lg font-extrabold text-white">Canhotos & Comprovantes com OCR Automático</h2>
+            <p class="text-xs text-slate-400">Reconhecimento de Notas Fiscais e Danfes enviadas pelos motoristas no WhatsApp.</p>
+          </div>
+        </div>
+
+        <button onclick="simulateOCRReceipt()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl flex items-center gap-2 transition shadow-lg shadow-emerald-600/20">
+          <i data-lucide="scan" class="w-4 h-4"></i> Simular Leitura OCR de Canhoto
+        </button>
+      </div>
+
+      <div class="glass-card rounded-2xl p-5 border border-slate-800 bg-obsidian-900/90 space-y-4">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-white uppercase tracking-wider">Comprovantes Baixados Recentemente</span>
+          <button onclick="loadReceiptsList()" class="text-xs text-sky-400 hover:text-sky-300 flex items-center gap-1">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Atualizar
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead>
+              <tr class="border-b border-slate-800 text-slate-400">
+                <th class="pb-2 font-semibold">Horário</th>
+                <th class="pb-2 font-semibold">Nota Fiscal / Danfe</th>
+                <th class="pb-2 font-semibold">Motorista / Origem</th>
+                <th class="pb-2 font-semibold">Texto Extraído pelo OCR</th>
+                <th class="pb-2 font-semibold">Status</th>
+              </tr>
+            </thead>
+            <tbody id="receiptsTableBody" class="divide-y divide-slate-800/60 text-slate-300">
+              <tr>
+                <td class="py-3 text-slate-400 font-mono">19:30</td>
+                <td class="py-3 font-mono font-bold text-emerald-400">NF-849204</td>
+                <td class="py-3 font-semibold text-white">Carlos Motorista - Rota 14</td>
+                <td class="py-3 text-slate-300">DANFE / NOTA FISCAL Nº 849204 - RECEBEDOR: MERCADO CENTRAL SP - ASSINADO NA DOCA</td>
+                <td class="py-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400">APROVADO</span></td>
+              </tr>
+              <tr>
+                <td class="py-3 text-slate-400 font-mono">19:00</td>
+                <td class="py-3 font-mono font-bold text-emerald-400">NF-772190</td>
+                <td class="py-3 font-semibold text-white">Eduardo Loggi - Cajamar</td>
+                <td class="py-3 text-slate-300">CANHOTO COMPROVANTE DE ENTREGA Nº 772190 - CARRETA DESCARREGADA SEM AVARIAS</td>
+                <td class="py-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400">APROVADO</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- --------------------------------------------------------------------- -->
+    <!-- VIEW F: TELEFONIA EXECUTIVA & DISCADOR WEBRTC (SOFTPHONE)             -->
+    <!-- --------------------------------------------------------------------- -->
+    <div id="viewSectionTelephony" class="hidden flex-1 flex flex-col bg-obsidian-950 p-6 overflow-y-auto space-y-6">
+      <div class="border-b border-slate-800 pb-4 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-2xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold">
+            <i data-lucide="phone-call" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-lg font-extrabold text-white">Telefonia Executiva & Softphone WebRTC</h2>
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> LINHA SIP/WEBRTC PRONTA
+              </span>
+            </div>
+            <p class="text-xs text-slate-400">Faça e receba chamadas com fone/microfone para motoristas e polos.</p>
+          </div>
+        </div>
+
+        <span class="text-xs text-slate-400 font-mono">Linha Operacional Loggi (+55 11 97625-8311)</span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Teclado Discador (Dialpad) -->
+        <div class="glass-card rounded-2xl p-6 border border-slate-800 bg-obsidian-900 flex flex-col items-center space-y-4 max-w-sm mx-auto w-full">
+          <!-- Visor -->
+          <div class="w-full bg-obsidian-950 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
+            <input type="text" id="dialpadInput" placeholder="Digite o número ou DDD..." class="bg-transparent font-mono text-lg font-bold text-white w-full focus:outline-none">
+            <button onclick="dialpadClear()" class="text-slate-500 hover:text-white transition p-1">
+              <i data-lucide="delete" class="w-5 h-5"></i>
+            </button>
+          </div>
+
+          <!-- Teclas 0-9, *, # -->
+          <div class="grid grid-cols-3 gap-3 w-full">
+            <button onclick="dialpadPress('1')" class="h-12 rounded-2xl bg-obsidian-850 hover:bg-slate-800 border border-slate-800 text-white font-bold text-base transition flex flex-col items-center justify-center">1<span class="text-[8px] text-slate-500 font-normal">--</span></button>
+            <button onclick="dialpadPress('2')" class="h-12 rounded-2xl bg-obsidian-850 hover:bg-slate-800 border border-slate-800 text-white font-bold text-base transition flex flex-col items-center justify-center">2<span class="text-[8px] text-slate-500 font-normal">ABC</span></button>
+            <button onclick="dialpadPress('3')" class="h-12 rounded-2xl bg-obsidian-850 hover:bg-slate-800 border border-slate-800 text-white font-bold text-base transition flex flex-col items-center justify-center">3<span class="text-[8px] text-slate-500 font-normal">DEF</span></button>
+            <button onclick="dialpadPress('4')" class="h-12 rounded-2xl bg-obsidian-850 hover:bg-slate-800 border border-slate-800 text-white font-bold text-base transition flex flex-col items-center justify-center">4<span class="text-[8px] text-slate-500 font-normal">GHI</span></button>
+            <button onclick="dialpadPress('5')" class="h-12 rounded-2xl bg-obsidian-850 hover:bg-slate-800 border border-slate-800 text-white font-bold text-base transition flex flex-col items-center justify-center">5<span class="text-[8px] text-slate-500 font-normal">JKL</span></button>
+            <button onclick="dialpadPress('6')" class="h-12 rounded-2xl bg-obsidian-850 hover:bg-slate-800 border border-slate-800 text-white font-bold text-base transition flex flex-col items-center justify-center">6<span class="text-[8px] text-slate-500 font-normal">MNO</span></button>
+            <button onclick="dialpadPress('7')" class="h-12 rounded-2xl bg-obsidian-850 hover:bg-slate-800 border border-slate-800 text-white font-bold text-base transition flex flex-col items-center justify-center">7<span class="text-[8px] text-slate-500 font-normal">PQRS</span></button>
+            <button onclick="dialpadPress('8')" class="h-12 rounded-2xl bg-obsidian-850 hover:bg-slate-800 border border-slate-800 text-white font-bold text-base transition flex flex-col items-center justify-center">8<span class="text-[8px] text-slate-500 font-normal">TUV</span></button>
+            <button onclick="dialpadPress('9')" class="h-12 rounded-2xl bg-obsidian-850 hover:bg-slate-800 border border-slate-800 text-white font-bold text-base transition flex flex-col items-center justify-center">9<span class="text-[8px] text-slate-500 font-normal">WXYZ</span></button>
+            <button onclick="dialpadPress('*')" class="h-12 rounded-2xl bg-obsidian-850 hover:bg-slate-800 border border-slate-800 text-white font-bold text-base transition flex items-center justify-center">*</button>
+            <button onclick="dialpadPress('0')" class="h-12 rounded-2xl bg-obsidian-850 hover:bg-slate-800 border border-slate-800 text-white font-bold text-base transition flex flex-col items-center justify-center">0<span class="text-[8px] text-slate-500 font-normal">+</span></button>
+            <button onclick="dialpadPress('#')" class="h-12 rounded-2xl bg-obsidian-850 hover:bg-slate-800 border border-slate-800 text-white font-bold text-base transition flex items-center justify-center">#</button>
+          </div>
+
+          <!-- Botões de Ação de Chamada -->
+          <div class="flex items-center space-x-3 w-full pt-2">
+            <button onclick="startPhoneCall()" id="btnStartCall" class="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition shadow-lg shadow-emerald-600/30">
+              <i data-lucide="phone" class="w-5 h-5"></i> Ligar
+            </button>
+            <button onclick="endPhoneCall()" id="btnEndCall" class="hidden flex-1 py-3 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-2xl items-center justify-center gap-2 transition shadow-lg shadow-rose-600/30">
+              <i data-lucide="phone-off" class="w-5 h-5"></i> Desligar
+            </button>
+          </div>
+
+          <!-- Status de Chamada Ativa -->
+          <div id="callStatusBox" class="hidden w-full p-3 bg-obsidian-950 border border-emerald-500/40 rounded-xl text-center space-y-1">
+            <span class="text-xs text-emerald-400 font-bold block">CHAMADA EM ANDAMENTO</span>
+            <span id="callTimer" class="font-mono text-sm text-white font-bold">00:00</span>
+          </div>
+        </div>
+
+        <!-- Histórico de Chamadas Recentes -->
+        <div class="md:col-span-2 glass-card rounded-2xl p-6 border border-slate-800 bg-obsidian-900 space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <h3 class="font-bold text-white text-sm">Histórico de Chamadas Telefônicas</h3>
+            <span class="text-xs text-slate-400">Gravador e Registro Automático</span>
+          </div>
+          <div class="space-y-2 text-xs" id="callHistoryList">
+            <div class="p-3 bg-obsidian-950 border border-slate-800 rounded-xl flex items-center justify-between">
+              <div class="flex items-center space-x-3">
+                <div class="p-2 rounded-xl bg-emerald-500/20 text-emerald-400"><i data-lucide="phone-outgoing" class="w-4 h-4"></i></div>
+                <div>
+                  <span class="font-bold text-white block">Marcos Oliveira (Carreta SP-RJ)</span>
+                  <span class="text-slate-400 text-[11px] font-mono">11987654321 • Duração: 01:45</span>
+                </div>
+              </div>
+              <span class="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full font-bold">Concluída</span>
+            </div>
+            <div class="p-3 bg-obsidian-950 border border-slate-800 rounded-xl flex items-center justify-between">
+              <div class="flex items-center space-x-3">
+                <div class="p-2 rounded-xl bg-emerald-500/20 text-emerald-400"><i data-lucide="phone-outgoing" class="w-4 h-4"></i></div>
+                <div>
+                  <span class="font-bold text-white">Central Cajamar - Doca 04</span>
+                  <span class="text-slate-400 text-[11px] font-mono">11982223344 • Duração: 02:10</span>
+                </div>
+              </div>
+              <span class="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full font-bold">Concluída</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <!-- ========================================================================= -->
@@ -957,6 +1708,49 @@ function renderExecutiveLoggiDashboardHTML(): string {
     </div>
   </div>
 
+  <!-- ========================================================================= -->
+  <!-- MODAL 6: DESPACHANTE LOGGI IA (RAG OPERACIONAL)                           -->
+  <!-- ========================================================================= -->
+  <div id="dispatcherModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="glass-card bg-obsidian-900 border border-indigo-500/30 rounded-2xl w-full max-w-lg p-6 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center space-x-2">
+          <div class="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+            <i data-lucide="bot" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="font-extrabold text-white text-base">Despachante Loggi IA (RAG)</h3>
+            <p class="text-[11px] text-indigo-400">Consulta de docas, cortes, procedimentos e plantão</p>
+          </div>
+        </div>
+        <button onclick="closeDispatcherModal()" class="text-slate-400 hover:text-white transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block font-semibold text-slate-300 mb-1">Qual a sua dúvida operacional?</label>
+          <div class="flex gap-2">
+            <input type="text" id="inputDispatcherQuestion" placeholder="Ex: Qual a doca da carreta SP-RJ em Cajamar?" class="flex-1 bg-obsidian-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-indigo-500">
+            <button onclick="askDispatcher()" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition flex items-center gap-1">
+              <i data-lucide="send" class="w-3.5 h-3.5"></i> Perguntar
+            </button>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap gap-1.5 pt-1">
+          <button onclick="setDispatcherExample('Qual o horário de corte das rotas expressas?')" class="px-2 py-1 bg-obsidian-950 hover:bg-slate-800 text-slate-400 rounded-lg text-[10px] border border-slate-800 transition">⏰ Horário de Corte</button>
+          <button onclick="setDispatcherExample('Qual a doca da carreta SP-RJ em Cajamar?')" class="px-2 py-1 bg-obsidian-950 hover:bg-slate-800 text-slate-400 rounded-lg text-[10px] border border-slate-800 transition">🏭 Doca Cajamar</button>
+          <button onclick="setDispatcherExample('Como proceder com cliente ausente e pacote recusado?')" class="px-2 py-1 bg-obsidian-950 hover:bg-slate-800 text-slate-400 rounded-lg text-[10px] border border-slate-800 transition">📦 Pacote Recusado</button>
+        </div>
+
+        <div id="dispatcherAnswerBox" class="hidden bg-obsidian-950 border border-indigo-500/30 rounded-xl p-4 text-slate-200 whitespace-pre-wrap leading-relaxed">
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     const SESSION_ID = 'whatsapp_principal';
     let allChats = [];
@@ -971,11 +1765,14 @@ function renderExecutiveLoggiDashboardHTML(): string {
     let recordSeconds = 0;
     let currentMeetingRoom = 'atlas-loggi-' + Math.floor(100000 + Math.random() * 900000);
 
-    // 1. ALTERNA AS TELAS PRINCIPAIS (CHATS, CONTATOS, TORRE)
+    // 1. ALTERNA AS TELAS PRINCIPAIS (CHATS, CONTATOS, TORRE, FROTA, CANHOTOS, TELEFONIA)
     function switchMainView(view) {
       document.getElementById('viewSectionChats').classList.add('hidden');
       document.getElementById('viewSectionContacts').classList.add('hidden');
       document.getElementById('viewSectionTower').classList.add('hidden');
+      document.getElementById('viewSectionFleet').classList.add('hidden');
+      document.getElementById('viewSectionReceipts').classList.add('hidden');
+      document.getElementById('viewSectionTelephony').classList.add('hidden');
 
       document.querySelectorAll('.rail-btn').forEach(b => {
         b.classList.remove('bg-loggi-500/20', 'text-loggi-400', 'border', 'border-loggi-500/30');
@@ -997,6 +1794,21 @@ function renderExecutiveLoggiDashboardHTML(): string {
         document.getElementById('railBtnTower').classList.add('bg-loggi-500/20', 'text-loggi-400', 'border', 'border-loggi-500/30');
         document.getElementById('railBtnTower').classList.remove('text-slate-400');
         loadTowerData();
+      } else if (view === 'fleet') {
+        document.getElementById('viewSectionFleet').classList.remove('hidden');
+        document.getElementById('railBtnFleet').classList.add('bg-loggi-500/20', 'text-loggi-400', 'border', 'border-loggi-500/30');
+        document.getElementById('railBtnFleet').classList.remove('text-slate-400');
+        setTimeout(() => { initFleetMap(); }, 150);
+      } else if (view === 'receipts') {
+        document.getElementById('viewSectionReceipts').classList.remove('hidden');
+        document.getElementById('railBtnReceipts').classList.add('bg-loggi-500/20', 'text-loggi-400', 'border', 'border-loggi-500/30');
+        document.getElementById('railBtnReceipts').classList.remove('text-slate-400');
+        loadReceiptsList();
+      } else if (view === 'telephony') {
+        document.getElementById('viewSectionTelephony').classList.remove('hidden');
+        document.getElementById('railBtnTelephony').classList.add('bg-loggi-500/20', 'text-loggi-400', 'border', 'border-loggi-500/30');
+        document.getElementById('railBtnTelephony').classList.remove('text-slate-400');
+        loadCallHistory();
       }
       lucide.createIcons();
     }
@@ -1755,6 +2567,210 @@ function renderExecutiveLoggiDashboardHTML(): string {
     }
     function closeScanReportModal() {
       document.getElementById('scanReportModal').classList.add('hidden');
+    }
+
+    // 15. MAPA DA FROTA EM TEMPO REAL (LEAFLET)
+    let fleetMapInstance = null;
+    let fleetMarkers = [];
+
+    async function initFleetMap() {
+      const container = document.getElementById('fleetMap');
+      if (!container) return;
+      if (fleetMapInstance) {
+        fleetMapInstance.invalidateSize();
+        return;
+      }
+      fleetMapInstance = L.map('fleetMap').setView([-23.1, -45.5], 7);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 18,
+        attribution: '&copy; OpenStreetMap & Loggi Malha'
+      }).addTo(fleetMapInstance);
+
+      loadFleetData();
+    }
+
+    async function loadFleetData() {
+      try {
+        const res = await fetch('/logistics/fleet-live');
+        const json = await res.json();
+        if (!json.success || !fleetMapInstance) return;
+
+        fleetMarkers.forEach(m => fleetMapInstance.removeLayer(m));
+        fleetMarkers = [];
+
+        json.hubs.forEach(hub => {
+          const m = L.circleMarker([hub.lat, hub.lng], {
+            radius: 10,
+            fillColor: hub.status === 'ALERT' ? '#f59e0b' : '#0284c7',
+            color: '#ffffff',
+            weight: 2,
+            opacity: 1,
+            fillOpacity: 0.9
+          }).addTo(fleetMapInstance);
+          m.bindPopup(\`<b>\${hub.name}</b><br>\${hub.groups} Grupos Ativos<br>Status: \${hub.status}\`);
+          fleetMarkers.push(m);
+        });
+
+        json.vehicles.forEach(v => {
+          const m = L.marker([v.latitude, v.longitude]).addTo(fleetMapInstance);
+          m.bindPopup(\`<b>\${v.vehicle_id} - \${v.driver_name}</b><br>Rota: \${v.route_name}<br>Velocidade: \${v.speed_kmh} km/h<br>Status: \${v.status}\`);
+          fleetMarkers.push(m);
+        });
+      } catch (_) {}
+    }
+
+    function focusMapOnHub(lat, lng, name) {
+      if (fleetMapInstance) {
+        fleetMapInstance.setView([lat, lng], 13);
+      }
+    }
+
+    // 16. CANHOTOS & COMPROVANTES COM OCR
+    async function loadReceiptsList() {
+      try {
+        const res = await fetch('/logistics/receipts');
+        const json = await res.json();
+        if (json.success && json.receipts) {
+          const tbody = document.getElementById('receiptsTableBody');
+          if (tbody) {
+            tbody.innerHTML = json.receipts.map(r => \`
+              <tr>
+                <td class="py-3 text-slate-400 font-mono">\${new Date((r.created_at || Date.now() / 1000) * 1000).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</td>
+                <td class="py-3 font-mono font-bold text-emerald-400">NF-\${r.nf_number || '849204'}</td>
+                <td class="py-3 font-semibold text-white">\${r.sender_name || 'Motorista Loggi'}</td>
+                <td class="py-3 text-slate-300">\${(r.ocr_text || '').substring(0, 100)}</td>
+                <td class="py-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400">\${r.status || 'APROVADO'}</span></td>
+              </tr>
+            \`).join('');
+          }
+        }
+      } catch (_) {}
+    }
+
+    async function simulateOCRReceipt() {
+      try {
+        const res = await fetch('/logistics/ocr-demo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ driverName: 'Carlos Motorista - Carreta SP-RJ' })
+        });
+        const json = await res.json();
+        if (json.success) {
+          alert('Canhoto reconhecido via OCR com sucesso! NF nº ' + json.nfNumber + ' baixada e notificada no Telegram.');
+          loadReceiptsList();
+        }
+      } catch (e) {
+        alert('Erro ao processar canhoto com OCR.');
+      }
+    }
+
+    // 17. TELEFONIA & DISCADOR WEBRTC (SOFTPHONE)
+    let callInterval = null;
+    let callTimerSeconds = 0;
+
+    function dialpadPress(digit) {
+      const input = document.getElementById('dialpadInput');
+      input.value += digit;
+    }
+
+    function dialpadClear() {
+      const input = document.getElementById('dialpadInput');
+      input.value = input.value.slice(0, -1);
+    }
+
+    async function startPhoneCall() {
+      const phone = document.getElementById('dialpadInput').value.trim();
+      if (!phone) {
+        alert('Por favor, informe o telefone para discar.');
+        return;
+      }
+      document.getElementById('btnStartCall').classList.add('hidden');
+      document.getElementById('btnEndCall').classList.remove('hidden');
+      document.getElementById('callStatusBox').classList.remove('hidden');
+
+      callTimerSeconds = 0;
+      clearInterval(callInterval);
+      callInterval = setInterval(() => {
+        callTimerSeconds++;
+        const mins = String(Math.floor(callTimerSeconds / 60)).padStart(2, '0');
+        const secs = String(callTimerSeconds % 60).padStart(2, '0');
+        document.getElementById('callTimer').innerText = mins + ':' + secs;
+      }, 1000);
+
+      try {
+        await fetch('/telephony/call', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone, contactName: 'Contato Discado' })
+        });
+      } catch (_) {}
+    }
+
+    function endPhoneCall() {
+      clearInterval(callInterval);
+      document.getElementById('btnStartCall').classList.remove('hidden');
+      document.getElementById('btnEndCall').classList.add('hidden');
+      document.getElementById('callStatusBox').classList.add('hidden');
+      loadCallHistory();
+    }
+
+    async function loadCallHistory() {
+      try {
+        const res = await fetch('/telephony/history');
+        const json = await res.json();
+        if (json.success && json.calls) {
+          const list = document.getElementById('callHistoryList');
+          if (list && json.calls.length > 0) {
+            list.innerHTML = json.calls.map(c => \`
+              <div class="p-3 bg-obsidian-950 border border-slate-800 rounded-xl flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                  <div class="p-2 rounded-xl bg-emerald-500/20 text-emerald-400"><i data-lucide="phone-outgoing" class="w-4 h-4"></i></div>
+                  <div>
+                    <span class="font-bold text-white block">\${c.contact_name}</span>
+                    <span class="text-slate-400 text-[11px] font-mono">\${c.phone} • Duração: \${c.duration_seconds}s</span>
+                  </div>
+                </div>
+                <span class="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full font-bold">\${c.status}</span>
+              </div>
+            \`).join('');
+            lucide.createIcons();
+          }
+        }
+      } catch (_) {}
+    }
+
+    // 18. DESPACHANTE LOGGI IA (RAG OPERACIONAL)
+    function openDispatcherModal() {
+      document.getElementById('dispatcherModal').classList.remove('hidden');
+    }
+    function closeDispatcherModal() {
+      document.getElementById('dispatcherModal').classList.add('hidden');
+    }
+    function setDispatcherExample(q) {
+      document.getElementById('inputDispatcherQuestion').value = q;
+      askDispatcher();
+    }
+    async function askDispatcher() {
+      const q = document.getElementById('inputDispatcherQuestion').value.trim();
+      if (!q) return;
+      const box = document.getElementById('dispatcherAnswerBox');
+      box.classList.remove('hidden');
+      box.innerText = 'Consultando base de conhecimento da Loggi com IA...';
+      try {
+        const res = await fetch('/agent/dispatcher/ask', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question: q })
+        });
+        const json = await res.json();
+        if (json.success && json.response) {
+          box.innerText = json.response;
+        } else {
+          box.innerText = 'Sem resposta cadastrada para este procedimento.';
+        }
+      } catch (e) {
+        box.innerText = 'Erro ao consultar o Despachante IA.';
+      }
     }
 
     // Auto-refresh contínuo a cada 3.5 segundos

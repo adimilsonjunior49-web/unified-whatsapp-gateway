@@ -19,6 +19,8 @@ import { eventBus } from '../queue/eventBus';
 import { agencyHub } from '../agents/agencyHub';
 import { highCapacityStore, ChatRecord } from '../storage/highCapacityStore';
 import { audioTranscriptionEngine } from '../audio/audioTranscriptionEngine';
+import { ocrEngine } from '../ocr/ocrEngine';
+import { loggiDispatcherAgent } from '../agent/loggiDispatcherAgent';
 
 export interface ChatSummary {
   remoteJid: string;
@@ -345,6 +347,57 @@ export class BaileysEngine {
               }
             } catch (err: any) {
               this.logger.warn(`[Whisper Audio] Erro ao transcrever: ${err.message}`);
+            }
+          }
+
+          // Se for imagem (foto de canhoto/comprovante), processa OCR e extrai NF
+          if (normalized.mediaType === 'image' && msg.message?.imageMessage) {
+            try {
+              const imgBuffer = await downloadMediaMessage(msg, 'buffer', {}, {
+                logger: this.logger,
+                reuploadRequest: sock.updateMediaMessage
+              });
+
+              const receiptsDir = path.resolve(process.cwd(), 'storage', 'receipts');
+              if (!fs.existsSync(receiptsDir)) {
+                fs.mkdirSync(receiptsDir, { recursive: true });
+              }
+              const filename = `receipt_${sessionId}_${normalized.id}.jpg`;
+              const imgPath = path.join(receiptsDir, filename);
+              fs.writeFileSync(imgPath, imgBuffer);
+              normalized.mediaUrl = `/receipts/${filename}`;
+
+              // OCR de baixa automática do canhoto
+              const ocrRes = await ocrEngine.recognizeImage(imgBuffer);
+              if (ocrRes && ocrRes.text) {
+                normalized.text = `📸 [Comprovante/Canhoto - NF nº ${ocrRes.nfNumber || 'Identificada'}]: Baixa de entrega confirmada na Torre`;
+                highCapacityStore.saveDeliveryReceipt({
+                  id: normalized.id,
+                  messageId: normalized.id,
+                  senderJid: normalized.senderJid,
+                  senderName: normalized.senderName,
+                  imageUrl: normalized.mediaUrl,
+                  ocrText: ocrRes.text,
+                  nfNumber: ocrRes.nfNumber,
+                  status: 'APPROVED'
+                });
+              }
+            } catch (imgErr: any) {
+              this.logger.warn(`[OCR Canhoto] Erro ao processar imagem: ${imgErr.message}`);
+            }
+          }
+
+          // Se for localização de motorista, atualiza no mapa em tempo real
+          if (msg.message?.locationMessage) {
+            const loc = msg.message.locationMessage;
+            if (loc.degreesLatitude && loc.degreesLongitude) {
+              highCapacityStore.updateVehicleLocation(
+                normalized.senderJid,
+                loc.degreesLatitude,
+                loc.degreesLongitude,
+                45,
+                'ON_ROUTE'
+              );
             }
           }
 

@@ -57,7 +57,7 @@ async function runTests() {
   });
 
   // 3. SQLite Storage Persistence
-  const db = new DatabaseSync(path.join(process.cwd(), 'storage', 'atlas_enterprise.db'));
+  const db = new DatabaseSync(path.join(__dirname, '..', 'storage', 'atlas_enterprise.db'));
   const chatsCount = db.prepare('SELECT count(*) as c FROM chats').get()?.c || 0;
   const contactsCount = db.prepare('SELECT count(*) as c FROM contacts').get()?.c || 0;
   const messagesCount = db.prepare('SELECT count(*) as c FROM messages').get()?.c || 0;

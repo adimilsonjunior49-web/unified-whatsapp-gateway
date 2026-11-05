@@ -32,6 +32,7 @@
     "pino": "^9.4.0",
     "pino-pretty": "^11.2.2",
     "qrcode": "^1.5.4",
+    "tesseract.js": "^7.0.0",
     "wavefile": "^11.0.0"
   },
   "devDependencies": {
