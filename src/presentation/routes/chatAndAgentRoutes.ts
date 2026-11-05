@@ -56,8 +56,8 @@ export async function chatAndAgentRoutes(fastify: FastifyInstance, _opts: Fastif
     });
   });
 
-  // Listar Agenda de Contatos Salvos
-  fastify.get('/contacts/:sessionId', async (request, reply) => {
+  // Listar Agenda de Contatos Salvos (com ou sem sessionId)
+  const handleGetContacts = async (request: any, reply: any) => {
     const { search, category, limit } = request.query as { search?: string; category?: string; limit?: string };
     const contacts = highCapacityStore.getContacts(search, category, limit ? Number(limit) : 250);
     return reply.send({
@@ -65,10 +65,13 @@ export async function chatAndAgentRoutes(fastify: FastifyInstance, _opts: Fastif
       count: contacts.length,
       data: contacts
     });
-  });
+  };
 
-  // Salvar / Atualizar Contato na Agenda
-  fastify.post('/contacts/:sessionId', async (request, reply) => {
+  fastify.get('/contacts/:sessionId', handleGetContacts);
+  fastify.get('/contacts', handleGetContacts);
+
+  // Salvar / Atualizar Contato na Agenda (com ou sem sessionId)
+  const handleSaveContact = async (request: any, reply: any) => {
     const body = request.body as {
       jid?: string;
       name: string;
@@ -88,7 +91,10 @@ export async function chatAndAgentRoutes(fastify: FastifyInstance, _opts: Fastif
       message: 'Contato salvo com sucesso!',
       data: saved
     });
-  });
+  };
+
+  fastify.post('/contacts/:sessionId', handleSaveContact);
+  fastify.post('/contacts', handleSaveContact);
 
   // Excluir Contato da Agenda
   fastify.delete('/contacts/:sessionId/:jid', async (request, reply) => {

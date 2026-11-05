@@ -2616,20 +2616,6 @@ const htmlContent = `<!DOCTYPE html>
       soundscapeEnabled = !soundscapeEnabled;
       localStorage.setItem('atlas_soundscape_enabled', soundscapeEnabled);
       updateSoundscapeUI();
-
-    let soundscapeEnabled = localStorage.getItem('atlas_soundscape_enabled') !== 'false';
-
-    function toggleSoundscape() {
-      soundscapeEnabled = !soundscapeEnabled;
-      localStorage.setItem('atlas_soundscape_enabled', soundscapeEnabled);
-      updateSoundscapeUI();
-
-    let soundscapeEnabled = localStorage.getItem('atlas_soundscape_enabled') !== 'false';
-
-    function toggleSoundscape() {
-      soundscapeEnabled = !soundscapeEnabled;
-      localStorage.setItem('atlas_soundscape_enabled', soundscapeEnabled);
-      updateSoundscapeUI();
       if (soundscapeEnabled) playAtlasSound('ping');
     }
 
