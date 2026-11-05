@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { NormalizedMessage } from '../../domain/message';
+import { loggiDispatcherAgent } from '../agent/loggiDispatcherAgent';
 
 export interface AgentPersona {
   id: string;
@@ -128,18 +129,24 @@ export class AgencyHub {
     const textToProcess = message.text?.trim();
     if (!textToProcess) return null;
 
-    // 1. Tentar FreeLLMAPI local (Claude 3.5 Sonnet / Haiku / Fusion - Custo Zero)
+    // 0. Prioridade Operacional: Consultar Base de Procedimentos Loggi
+    const dispatcherResult = loggiDispatcherAgent.query(textToProcess);
+    if (dispatcherResult.answered) {
+      return dispatcherResult.response;
+    }
+
+    // 1. Tentar FreeLLMAPI local (Roteamento inteligente 'auto' / Claude - Custo Zero)
     try {
       const response = await axios.post(
         'http://localhost:3001/v1/chat/completions',
         {
-          model: 'claude-haiku-4-5',
+          model: 'auto',
           messages: [
             { role: 'system', content: persona.systemPrompt },
             { role: 'user', content: textToProcess }
           ],
           temperature: 0.7,
-          max_tokens: 400
+          max_tokens: 350
         },
         {
           headers: {
@@ -153,16 +160,16 @@ export class AgencyHub {
       const reply = response.data?.choices?.[0]?.message?.content;
       if (reply) return reply.trim();
     } catch (_) {
-      // FreeLLMAPI offline, tentar fallback no Ollama
+      // FreeLLMAPI offline ou ocupado, tenta fallback no Ollama
     }
 
-    // 2. Tentar Ollama local (Qwen 2.5 3B / Llama 3.2 - Offline)
+    // 2. Tentar Ollama local (Qwen 2.5 3B - 100% Offline Local)
     try {
       const response = await axios.post(
         'http://localhost:11434/api/generate',
         {
           model: 'qwen2.5:3b',
-          prompt: `${persona.systemPrompt}\n\nMensagem do cliente: "${textToProcess}"\nResposta curta e amigável:`,
+          prompt: `${persona.systemPrompt}\n\nCliente: "${textToProcess}"\nResposta direta, executiva e humanizada:`,
           stream: false
         },
         { timeout: 7000 }
@@ -174,12 +181,13 @@ export class AgencyHub {
       // Ollama offline
     }
 
-    // 3. Fallback inteligente baseado em regras locais
-    if (textToProcess.toLowerCase().includes('olá') || textToProcess.toLowerCase().includes('bom dia') || textToProcess.toLowerCase().includes('boa tarde')) {
-      return `Olá! Sou ${persona.name}. Como posso te ajudar hoje?`;
+    // 3. Fallback inteligente e humanizado baseado em contexto
+    const lower = textToProcess.toLowerCase();
+    if (lower.includes('olá') || lower.includes('bom dia') || lower.includes('boa tarde') || lower.includes('boa noite')) {
+      return `Olá! Sou ${persona.name} da equipe de operações. Como posso te auxiliar agora?`;
     }
 
-    return null;
+    return `Recebido! Mensagem registrada na Torre de Controle da Loggi.`;
   }
 }
 

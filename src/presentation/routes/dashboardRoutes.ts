@@ -2581,9 +2581,10 @@ function renderExecutiveLoggiDashboardHTML(): string {
         return;
       }
       fleetMapInstance = L.map('fleetMap').setView([-23.1, -45.5], 7);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 18,
-        attribution: '&copy; OpenStreetMap & Loggi Malha'
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19,
+        subdomains: 'abcd',
+        attribution: '&copy; CartoDB & Loggi Malha'
       }).addTo(fleetMapInstance);
 
       loadFleetData();
@@ -2668,7 +2669,25 @@ function renderExecutiveLoggiDashboardHTML(): string {
     let callInterval = null;
     let callTimerSeconds = 0;
 
+    function playDtmfTone(digit) {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        const freqs = { '1': 697, '2': 770, '3': 852, '4': 697, '5': 770, '6': 852, '7': 941, '8': 941, '9': 941, '0': 941, '*': 941, '#': 941 };
+        osc.frequency.setValueAtTime(freqs[digit] || 700, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.12);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.12);
+      } catch (_) {}
+    }
+
     function dialpadPress(digit) {
+      playDtmfTone(digit);
       const input = document.getElementById('dialpadInput');
       input.value += digit;
     }
